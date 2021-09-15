@@ -299,13 +299,25 @@ class Gridworld(object):
             plt.show()
 
 def main():
+    # Build the gridworld
     gridworld = Gridworld(Nr=5, Nc=5)
-    mdp = gridworld.build_mdp(gamma=0.99)
+
+    # Construct the corresponding MDP
+    mdp = gridworld.build_mdp()
+
+    # Construct and solve the reachability LP
     prob, x = mdp.build_reachability_LP()
+    prob.parameters()[0].value = 0.1
     prob.solve()
-    policy = mdp.policy_from_occupancy_vars(x.value)
+    print(prob.solution.opt_val)
+
+    # Visualize the occupancy measures
+    occupancy_vars = mdp.process_occupancy_vars(x)
+    gridworld.visualize_occupancy_measures(occupancy_vars)
+
+    # Solve for the corresponding policy
+    policy = mdp.policy_from_occupancy_vars(occupancy_vars)
     print(policy)
-    gridworld.visualize_occupancy_measures(x.value)
 
 if __name__ == '__main__':
     main()

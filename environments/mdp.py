@@ -60,7 +60,8 @@ class MDP(object):
         self.absorbing_states = list(absorbing_states)
         self.active_states = list(active_states)
 
-    def build_reachability_LP(self):
+    def build_reachability_LP(self,
+                                exp_len_coef : float = 1.0):
         """
         Construct an LP to solve for a set of occupancy measures that
         respect the MDP dynamics while maximizing the probability of
@@ -77,7 +78,7 @@ class MDP(object):
 
         ##### Define the problem variables
         x = cp.Variable(shape=(self.Ns, self.Na), name='x')
-        gamma = cp.Parameter(name='gamma', value=self.gamma)
+        exp_len_coef = cp.Parameter(name='expLenCoef', value=exp_len_coef)
 
         ##### Define the problem constraints
         constraints = []
@@ -96,7 +97,7 @@ class MDP(object):
         occupancy_init = occupancy_init[self.active_states]
 
         occupancy_in = cp.hstack(
-            [gamma * cp.sum(cp.multiply(x[self.active_states, :], 
+            [cp.sum(cp.multiply(x[self.active_states, :], 
                                 self.T[self.active_states, :, i])) 
                 for i in self.active_states]
             )
@@ -111,12 +112,30 @@ class MDP(object):
                 )
             )
 
-        obj = cp.Maximize(target_set_in)
+        expected_length = cp.sum(x)
+
+        obj = cp.Maximize(target_set_in - exp_len_coef * expected_length)
 
         ##### Create the problem
         prob = cp.Problem(obj, constraints)
 
         return prob, x
+
+    def process_occupancy_vars(self, x : cp.Variable):
+        """
+        Make sure all of the occupancy variables are positive.
+        It's sometimes possible for the occupancy variables to be very small 
+        negative numbers due to numerical errors.
+        """
+        x = x.value
+        Ns, Na = x.shape
+        for s in range(Ns):
+            for a in range(Na):
+                if x[s,a] < 0.0:
+                    assert np.abs(x[s,a]) <= 1e-10
+                    x[s,a] = 0.0
+        return x
+
 
     def policy_from_occupancy_vars(self, x : np.ndarray):
         """
