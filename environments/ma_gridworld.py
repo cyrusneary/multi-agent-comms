@@ -1,3 +1,4 @@
+from cvxpy.expressions.cvxtypes import index
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import imageio
@@ -16,10 +17,11 @@ class MAGridworld(object):
                 N_agents : int = 2,
                 Nr : int = 5, 
                 Nc : int = 5,
-                slip_p : float = 0.05,
-                initial_state : tuple = (4, 0, 4, 3),
-                target_states : list = [(4, 4, 4, 1)],
+                slip_p : float = 0.1,
+                initial_state : tuple = (4, 0, 4, 4),
+                target_states : list = [(4, 4, 4, 0)],
                 dead_states : list = [],
+                lava : list = [(0, 4), (0, 0)],
                 walls : list = [],
                 load_file_str : str = ''
                 ):
@@ -47,6 +49,8 @@ class MAGridworld(object):
             agents in the gridworld.
         dead_states :
             List of positions of dead states in the gridworld.
+        lava :
+            List of positions of lava in the gridworld.
         walls :
             List of positions of the walls in the gridworld.
         load_file_str :
@@ -68,7 +72,8 @@ class MAGridworld(object):
             # 1 : up
             # 2 : left
             # 3 : down
-            self.Na_local = 4
+            # 4 : stay
+            self.Na_local = 5
             self.Na_joint = self.Na_local**self.N_agents
 
             self._construct_state_space()
@@ -88,7 +93,9 @@ class MAGridworld(object):
             self.slip_p = slip_p
 
             self.dead_states = dead_states
+            self.lava = lava
             self._construct_collision_dead_states()
+            self._construct_lava_dead_states()
             self.dead_indexes = [self.index_from_pos[d_state]
                                     for d_state in self.dead_states]
 
@@ -118,6 +125,7 @@ class MAGridworld(object):
         save_dict['slip_p'] = self.slip_p
         save_dict['dead_states'] = self.dead_states
         save_dict['dead_indexes'] = self.dead_indexes
+        save_dict['lava'] = self.lava
         save_dict['walls'] = self.walls
         save_dict['T'] = self.T
 
@@ -145,6 +153,7 @@ class MAGridworld(object):
         self.slip_p = save_dict['slip_p']
         self.dead_states = save_dict['dead_states']
         self.dead_indexes = save_dict['dead_indexes']
+        self.lava = save_dict['lava']
         self.walls = save_dict['walls']
         self.T = save_dict['T']
 
@@ -194,6 +203,16 @@ class MAGridworld(object):
 
                         self.dead_states.append(state_tuple)
 
+    def _construct_lava_dead_states(self):
+        """
+        Add all joint states corresponding to an agent being in lava.
+        """
+        for s in range(self.Ns_joint):
+            state_tuple = self.pos_from_index[s]
+            for agent_id in range(self.N_agents):
+                if (state_tuple[2*agent_id:(2*agent_id + 2)] in self.lava
+                    and not(state_tuple in self.dead_states)):
+                    self.dead_states.append(state_tuple)
 
     def _build_transition_matrix(self):
         """
@@ -251,6 +270,7 @@ class MAGridworld(object):
                 if (state_r + 1 < self.Nr
                         and not((state_r + 1, state_c) in self.walls)): # down
                     agent_next_states[agent_id][3] = (state_r + 1, state_c) 
+                agent_next_states[agent_id][4] = (state_r, state_c) # stay
 
                 # action 0: move right
                 # action 1: move up
@@ -334,9 +354,10 @@ class MAGridworld(object):
                     gamma=gamma
                     )
 
-    def run_trajectory(self, policy : np.ndarray):
+    def run_trajectory(self, policy : np.ndarray, max_steps : int = 30):
         """
-        Run a trajectory from the joint initial state.
+        Run a trajectory from the joint initial state implementing the
+        specified policy with full communication.
 
         Parameters
         ----------
@@ -354,12 +375,97 @@ class MAGridworld(object):
         traj.append(self.initial_index)
         s = self.initial_index
 
-        while (s not in self.target_indexes) and (s not in self.dead_indexes):
+        while ((s not in self.target_indexes) and (s not in self.dead_indexes)
+                    and len(traj) <= max_steps):
             a = np.random.choice(np.arange(self.Na_joint), p=policy[s,:])
             s = np.random.choice(np.arange(self.Ns_joint), p=self.T[s,a,:])
             traj.append(s)
 
         return traj
+
+    def run_trajectory_imaginary(self, 
+                                policy : np.ndarray, 
+                                max_steps : int = 30):
+        """
+        Run a trajectory from the joint initial state under imaginary 
+        play implementing the specified joint policy.
+
+        Parameters
+        ----------
+        policy : 
+            Matrix representing the policy. policy[s_ind, a_ind] is the 
+            probability of taking the action indexed by a_ind from the 
+            joint state indexed by s_ind.
+
+        Returns
+        -------
+        traj : list
+            List of indexes of states. 
+        """
+        # TODO: Make this code general for N agents.
+        # TODO: Verify that this code actually implements fictitious play
+        # how we want it to. I don't think the true next state should
+        # just be the composition of each of the individual next states.
+        traj = []
+        s_tuple = self.pos_from_index[self.initial_index]
+        s1_tuple = s_tuple
+        s2_tuple = s_tuple
+        s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
+
+        s1 = self.index_from_pos[s1_tuple]
+        s2 = self.index_from_pos[s2_tuple]
+        s = self.index_from_pos[s_tuple]
+        traj.append(s)
+
+        while ((s not in self.target_indexes) and (s not in self.dead_indexes)
+                    and len(traj) <= max_steps):
+            a1 = np.random.choice(np.arange(self.Na_joint), p=policy[s1,:])
+            a2 = np.random.choice(np.arange(self.Na_joint), p=policy[s2,:])
+            s1 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s1,a1,:])
+            s2 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s2,a2,:])
+
+            s1_tuple = self.pos_from_index[s1]
+            s2_tuple = self.pos_from_index[s2]
+
+            s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
+            s = self.index_from_pos[s_tuple]
+            traj.append(s)
+
+        return traj
+
+        # traj = []
+        # s_tuple = self.pos_from_index[self.initial_index]
+
+        # agent_s_tuples = {}
+        # agent_s_inds = {}
+        # agent_a_inds = {}
+
+        # for agent_id in range(self.N_agents):
+        #     agent_s_tuples[agent_id] = s_tuple
+        #     agent_s_inds[agent_id] = self.index_from_pos[agent_s_tuples[agent_id]]
+        
+        # for agent_id in range(self.N_agents):
+        #     s_tuple = (s_tuple
+        #                 + agent_s_tuples[agent_s_tuples][2*agent_id:(2*agent_id + 2)])
+
+        # s = self.index_from_pos[s_tuple]
+        # traj.append(s)
+
+        # while ((s not in self.target_indexes) and (s not in self.dead_indexes)
+        #             and len(traj) <= max_steps):
+        #     a1 = np.random.choice(np.arange(self.Na_joint), p=policy[s1,:])
+        #     a2 = np.random.choice(np.arange(self.Na_joint), p=policy[s2,:])
+        #     s1 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s1,a1,:])
+        #     s2 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s2,a2,:])
+
+        #     s1_tuple = self.pos_from_index[s1]
+        #     s2_tuple = self.pos_from_index[s2]
+
+        #     s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
+        #     s = self.index_from_pos[s_tuple]
+        #     traj.append(s)
+
+        # return traj
 
     #################### Visualization Methods
 
@@ -424,6 +530,15 @@ class MAGridworld(object):
                                             fill=True, color='black')
             ax.add_patch(wall_square)
 
+        # Plot the lava
+        for lava in self.lava:
+            (lava_r, lava_c) = lava
+            lava_square = patches.Rectangle((lava_c * grid_spacing, 
+                                            -(lava_r + 1) * grid_spacing), 
+                                            grid_spacing, grid_spacing, 
+                                            fill=True, color='red')
+            ax.add_patch(lava_square)
+
         # # Plot the obstacles
         # for obstacle in self.dead_states:
         #     (obs_r, obs_c) = obstacle
@@ -471,6 +586,17 @@ class MAGridworld(object):
                 filenames.append(filename)
                 i = i + 1
                 plt.savefig(filename)
+                plt.close()
+            
+            # In between trajectories, add a blank screen.
+            fig = plt.figure(figsize=(8,8))
+            ax = fig.add_subplot(111, aspect='equal')
+            ax.axis('off')
+            filename = os.path.join(save_folder_str, 'f{}.png'.format(i))
+            filenames.append(filename)
+            i = i + 1
+            plt.savefig(filename)
+            plt.close()
 
         im_list = []
         for filename in filenames:
@@ -478,12 +604,6 @@ class MAGridworld(object):
         imageio.mimwrite(os.path.join(save_folder_str, save_file_name),
                             im_list,
                             duration=0.5)
-        # # Write the gif from all of the saved pictures
-        # with imageio.get_writer(os.path.join(save_folder_str, save_file_name),
-        #                             mode='I') as writer:
-        #     for filename in filenames:
-        #         image = imageio.imread(filename)
-        #         writer.append_data(image)
         
         # Clean up the folder of all the saved pictures
         for filename in set(filenames):
@@ -515,27 +635,73 @@ def main():
     # gridworld = MAGridworld(load_file_str=load_file_str)
     # print('Loaded multiagent gridworld.')
 
-    ##### Solve the reachability problem    
-    
-    gridworld.display()
+    # ##### Examine the tradeoff between success probability and expected len
+    # mdp = gridworld.build_mdp()
+    # # Construct the reachability LP
+    # prob, x = build_reachability_LP(mdp, exp_len_coef=0.0)
+    # exp_len_coeff_list = np.linspace(0.0, 0.5, num=50)
 
+    # succ_prob_list = []
+    # exp_len_list = []
+
+    # for exp_len_coeff_val in exp_len_coeff_list:
+    #     prob.parameters()[0].value = exp_len_coeff_val
+    #     prob.solve()
+    #     # Get the optimal joint policy
+    #     occupancy_vars = process_occupancy_vars(x)
+    #     succ_prob_list.append(mdp.success_probability_from_occupancy_vars(occupancy_vars))
+    #     exp_len_list.append(mdp.expected_len_from_occupancy_vars(occupancy_vars))
+
+    # fig = plt.figure(figsize=(20,10))
+    # ax = fig.add_subplot(211)
+    # ax.plot(exp_len_coeff_list, succ_prob_list, 
+    #         linewidth=3, marker='o', label='Success Probability')
+    # ax.grid()
+    # ax.set_xlabel('Expected Length Coefficient')
+    # ax.set_ylabel('Success Probability')
+
+    # ax = fig.add_subplot(212)
+    # ax.plot(exp_len_coeff_list, exp_len_list, 
+    #         linewidth=3, marker='o', label='Expected Length')
+    # ax.grid()
+    # ax.set_xlabel('Expected Length Coefficient')
+    # ax.set_ylabel('Expected Length')
+
+    # plt.show()
+
+    ##### Solve and visualize the reachability problem for a reasonable value
+    ##### of the expected length coefficient
     # Construct the corresponding MDP
     mdp = gridworld.build_mdp()
 
     # Construct and solve the reachability LP
-    prob, x = build_reachability_LP(mdp)
-    prob.parameters()[0].value = 0.1
+    prob, x = build_reachability_LP(mdp, exp_len_coef=0.1)
+    # prob.parameters()[0].value = 0.1
     prob.solve()
-    print(prob.solution.opt_val)
 
     # Get the optimal joint policy
     occupancy_vars = process_occupancy_vars(x)
     policy = mdp.policy_from_occupancy_vars(occupancy_vars)
 
+    success_prob = mdp.success_probability_from_occupancy_vars(occupancy_vars)
+    expected_len = mdp.expected_len_from_occupancy_vars(occupancy_vars)
+
+    print('Success probability: {}, expected length: {}'.format(success_prob, 
+                                                                expected_len))
+
+    ##### Empirically measure imaginary play success
+    num_trajectories = 10000
+    success_count = 0
+    for t_ind in range(num_trajectories):
+        if gridworld.run_trajectory_imaginary(policy, max_steps=50)[-1] in gridworld.target_indexes:
+            success_count = success_count + 1
+    print('Imaginary play success rate: {}'.format(success_count / num_trajectories))
+
+    ##### Create a GIF
     num_trajectories = 10
     trajectory_list = []
     for t_ind in range(num_trajectories):
-        trajectory_list.append(gridworld.run_trajectory(policy))
+        trajectory_list.append(gridworld.run_trajectory_imaginary(policy))
 
     gif_save_folder = os.path.join(os.path.abspath(os.path.curdir), 'gifs')
 
