@@ -8,8 +8,6 @@ import sys, os, time
 
 sys.path.append('../')
 from markov_decision_process.mdp import MDP
-from optimization_problems.reachability_LP import build_reachability_LP,\
-                                                    process_occupancy_vars
 
 class MAGridworld(object):
 
@@ -493,9 +491,6 @@ class MAGridworld(object):
         # Plot the initial states
         for agent_id in range(self.N_agents):
             (init_r, init_c) = self.initial_state[2*agent_id:(2*agent_id + 2)]
-            # ax.text(init_c * grid_spacing + grid_spacing/2, 
-            #         - (init_r * grid_spacing + grid_spacing/2), 
-            #         'R{}'.format(agent_id))
             ax.plot(init_c * grid_spacing + grid_spacing/2, 
                     - (init_r * grid_spacing + grid_spacing/2), 
                     linestyle=None, marker='x', markersize=15, color='blue')
@@ -507,9 +502,6 @@ class MAGridworld(object):
                 ax.text(state_c * grid_spacing + grid_spacing/2, 
                     - (state_r * grid_spacing + grid_spacing/2), 
                     'R{}'.format(agent_id))
-                # ax.plot(state_c * grid_spacing + grid_spacing/2,
-                #         -(state_r * grid_spacing + grid_spacing/2), 
-                #         linestyle=None, marker='o', markersize=20, color='blue')
 
         # Plot the target locations
         for goal in self.target_states:
@@ -538,15 +530,6 @@ class MAGridworld(object):
                                             grid_spacing, grid_spacing, 
                                             fill=True, color='red')
             ax.add_patch(lava_square)
-
-        # # Plot the obstacles
-        # for obstacle in self.dead_states:
-        #     (obs_r, obs_c) = obstacle
-        #     obs_square = patches.Rectangle((obs_c * grid_spacing, 
-        #                                     -(obs_r + 1) * grid_spacing), 
-        #                                     grid_spacing, grid_spacing, 
-        #                                     fill=True, color='red')
-        #     ax.add_patch(obs_square)
 
         if plot:
             plt.show()
@@ -610,13 +593,20 @@ class MAGridworld(object):
             os.remove(filename)
         
 def main():
-
-    ##### BUILD THE GRIDWOLRD FROM SCRATCH
+    ##### BUILD THE GRIDWOLRD FROM SCRATCH AND SAVE IT
 
     # Build the gridworld
     print('Building gridworld')
     t_start = time.time()
-    gridworld = MAGridworld(Nr=5, Nc=5, walls=[(0,2), (2,2), (4,2)])
+    gridworld = MAGridworld(N_agents=2,
+                            Nr=5, 
+                            Nc=5,
+                            slip_p=0.1,
+                            initial_state=(4, 0, 4, 4),
+                            target_states=[(4, 4, 4, 0)],
+                            dead_states=[],
+                            lava=[(0, 4), (0, 0)],
+                            walls=[(0,2), (2,2), (4,2)])    
     print('Constructed gridworld in {} seconds'.format(time.time() - t_start))
 
     # Sanity check on the transition matrix
@@ -628,84 +618,6 @@ def main():
     save_file_str = os.path.join(os.path.abspath(os.path.curdir), 
                                     'saved_environments', 'ma_gridworld.pkl')
     gridworld.save(save_file_str)
-
-    # ##### LOAD A PRE-CONSTRUCTED GRIDWORLD
-    # load_file_str = os.path.join(os.path.abspath(os.path.curdir),
-    #                                 'saved_environments', 'ma_gridworld.pkl')
-    # gridworld = MAGridworld(load_file_str=load_file_str)
-    # print('Loaded multiagent gridworld.')
-
-    # ##### Examine the tradeoff between success probability and expected len
-    # mdp = gridworld.build_mdp()
-    # # Construct the reachability LP
-    # prob, x = build_reachability_LP(mdp, exp_len_coef=0.0)
-    # exp_len_coeff_list = np.linspace(0.0, 0.5, num=50)
-
-    # succ_prob_list = []
-    # exp_len_list = []
-
-    # for exp_len_coeff_val in exp_len_coeff_list:
-    #     prob.parameters()[0].value = exp_len_coeff_val
-    #     prob.solve()
-    #     # Get the optimal joint policy
-    #     occupancy_vars = process_occupancy_vars(x)
-    #     succ_prob_list.append(mdp.success_probability_from_occupancy_vars(occupancy_vars))
-    #     exp_len_list.append(mdp.expected_len_from_occupancy_vars(occupancy_vars))
-
-    # fig = plt.figure(figsize=(20,10))
-    # ax = fig.add_subplot(211)
-    # ax.plot(exp_len_coeff_list, succ_prob_list, 
-    #         linewidth=3, marker='o', label='Success Probability')
-    # ax.grid()
-    # ax.set_xlabel('Expected Length Coefficient')
-    # ax.set_ylabel('Success Probability')
-
-    # ax = fig.add_subplot(212)
-    # ax.plot(exp_len_coeff_list, exp_len_list, 
-    #         linewidth=3, marker='o', label='Expected Length')
-    # ax.grid()
-    # ax.set_xlabel('Expected Length Coefficient')
-    # ax.set_ylabel('Expected Length')
-
-    # plt.show()
-
-    ##### Solve and visualize the reachability problem for a reasonable value
-    ##### of the expected length coefficient
-    # Construct the corresponding MDP
-    mdp = gridworld.build_mdp()
-
-    # Construct and solve the reachability LP
-    prob, x = build_reachability_LP(mdp, exp_len_coef=0.1)
-    # prob.parameters()[0].value = 0.1
-    prob.solve()
-
-    # Get the optimal joint policy
-    occupancy_vars = process_occupancy_vars(x)
-    policy = mdp.policy_from_occupancy_vars(occupancy_vars)
-
-    success_prob = mdp.success_probability_from_occupancy_vars(occupancy_vars)
-    expected_len = mdp.expected_len_from_occupancy_vars(occupancy_vars)
-
-    print('Success probability: {}, expected length: {}'.format(success_prob, 
-                                                                expected_len))
-
-    ##### Empirically measure imaginary play success
-    num_trajectories = 10000
-    success_count = 0
-    for t_ind in range(num_trajectories):
-        if gridworld.run_trajectory_imaginary(policy, max_steps=50)[-1] in gridworld.target_indexes:
-            success_count = success_count + 1
-    print('Imaginary play success rate: {}'.format(success_count / num_trajectories))
-
-    ##### Create a GIF
-    num_trajectories = 10
-    trajectory_list = []
-    for t_ind in range(num_trajectories):
-        trajectory_list.append(gridworld.run_trajectory_imaginary(policy))
-
-    gif_save_folder = os.path.join(os.path.abspath(os.path.curdir), 'gifs')
-
-    gridworld.create_trajectories_gif(trajectory_list, gif_save_folder)
 
 if __name__ == '__main__':
     main()
