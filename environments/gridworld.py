@@ -2,8 +2,11 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import sys
-sys.path.append('..')
-from mdp import MDP
+sys.path.append('../')
+
+from markov_decision_process.mdp import MDP
+from optimization_problems.reachability_LP import build_reachability_LP, \
+                                                    process_occupancy_vars
 
 class Gridworld(object):
 
@@ -306,13 +309,13 @@ def main():
     mdp = gridworld.build_mdp()
 
     # Construct and solve the reachability LP
-    prob, x = mdp.build_reachability_LP()
+    prob, x = build_reachability_LP(mdp)
     prob.parameters()[0].value = 0.1
     prob.solve()
     print(prob.solution.opt_val)
 
     # Visualize the occupancy measures
-    occupancy_vars = mdp.process_occupancy_vars(x)
+    occupancy_vars = process_occupancy_vars(x)
     gridworld.visualize_occupancy_measures(occupancy_vars)
 
     # Solve for the corresponding policy
