@@ -80,5 +80,8 @@ class MDP(object):
         policy = np.zeros((self.Ns, self.Na))
         for s in self.active_states:
             for a in range(self.Na):
-                policy[s,a] = x[s, a] / np.sum(x[s, :])
+                if not (np.sum(x[s,:]) == 0.0):
+                    policy[s,a] = x[s, a] / np.sum(x[s, :])
+                else:
+                    policy[s,a] = 1.0 / len(x[s,:])
         return policy
