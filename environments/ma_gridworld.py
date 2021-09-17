@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
+import pickle
+import time
 import sys
-sys.path.append('..')
-from mdp import MDP
+
+sys.path.append('../')
+from markov_decision_process.mdp import MDP
 
 class MAGridworld(object):
 
@@ -47,8 +50,9 @@ class MAGridworld(object):
 
         self.Nr = Nr
         self.Nc = Nc
+        self.Ns_local = self.Nr * self.Nc
         self.N_agents = N_agents
-        self.Ns = (self.Nr * self.Nc)**self.N_agents
+        self.Ns_joint = (self.Ns_local)**self.N_agents
 
         # Actions:
         # 0 : right
@@ -64,7 +68,7 @@ class MAGridworld(object):
         assert len(initial_state) == self.N_agents * 2
         self.initial_state = initial_state
         self.initial_index = self.index_from_pos[initial_state]
-        assert self.initial_index <= self.Ns - 1
+        assert self.initial_index <= self.Ns_joint - 1
 
         assert len(target_states) > 0
         self.target_states = target_states
@@ -85,6 +89,13 @@ class MAGridworld(object):
 
         self._build_transition_matrix()
 
+    def save(self, save_file_str : str):
+        """
+        Save the multiagent gridworld object.
+        """
+        with open(save_file_str, 'wb') as f:
+            pickle.dump(self, f) 
+
     def _construct_state_space(self):
         """
         Build two maps providing state indexes from 
@@ -96,7 +107,7 @@ class MAGridworld(object):
         position_shape = tuple(self.Nr if i % 2 == 0 
                                 else self.Nc for i in range(self.N_agents*2))
 
-        for i in range(self.Ns):
+        for i in range(self.Ns_joint):
             self.pos_from_index[i] = np.unravel_index(i, position_shape)
             self.index_from_pos[self.pos_from_index[i]] = i
 
@@ -118,7 +129,7 @@ class MAGridworld(object):
         """
         Add all collision states to the list of dead states.
         """
-        for s in range(self.Ns):
+        for s in range(self.Ns_joint):
             state_tuple = self.pos_from_index[s]
             for agent_id in range(self.N_agents):
                 for agent_id2 in range(agent_id + 1, self.N_agents):
@@ -135,7 +146,7 @@ class MAGridworld(object):
         gridworld environment. 
         
         self.T[s,a,s'] = probability of reaching joint state s' from 
-                            joint state s under action a.
+                            joint state s under joint action a.
 
         The Local transitions of each agent are assumed to be independent.
         
@@ -145,9 +156,9 @@ class MAGridworld(object):
         action moves into a wall, then all of the probability is 
         assigned to the available adjacent states.
         """
-        self.T = np.zeros((self.Ns, self.Na_joint, self.Ns))
+        self.T = np.zeros((self.Ns_joint, self.Na_joint, self.Ns_joint))
 
-        for s in range(self.Ns):
+        for s in range(self.Ns_joint):
 
             # Check if the state is absorbing before assigning 
             # any probability values.
@@ -214,14 +225,6 @@ class MAGridworld(object):
                             local_trans_funcs[agent_id][a][val] \
                                 = 1.0 / num_slips
 
-            # # TODO: take this out. Only for checking where construction
-            # # of the joint transition function could be going wrong.
-            # # NOTE: The below code never threw an exception. The issue must
-            # # be somewhere below where we construct the joint transition probs.
-            # for agent_id in range(self.N_agents):
-            #     for a in range(self.Na_local):
-            #         assert sum(local_trans_funcs[agent_id][a].values()) == 1.0
-
             # Now that we have the local transition functions of all 
             # the agents, construct the joint transition function using
             # the assumption that all local transition probabilities
@@ -229,7 +232,7 @@ class MAGridworld(object):
             for a_ind in range(self.Na_joint):
                 action_tuple = self.action_tuple_from_index[a_ind]
 
-                for next_s_ind in range(self.Ns):
+                for next_s_ind in range(self.Ns_joint):
                     next_s_tuple = self.pos_from_index[next_s_ind]
 
                     prob_transition = 1.0
@@ -238,10 +241,13 @@ class MAGridworld(object):
                         local_action = action_tuple[agent_id]
                         local_state = next_s_tuple[2*agent_id:(2*agent_id + 2)]
 
-                        if local_state in local_trans_funcs[agent_id][local_action].keys():
-                            prob_local_trans = local_trans_funcs[agent_id][local_action][local_state]
+                        if (local_state in local_trans_funcs[agent_id]
+                                                [local_action].keys()):
+                            prob_local_trans = \
+                                local_trans_funcs[agent_id][local_action][local_state]
                         else:
-                            prob_local_trans = 0.0
+                            prob_transition = 0.0
+                            break
 
                         prob_transition = prob_transition * prob_local_trans
 
@@ -253,20 +259,22 @@ class MAGridworld(object):
                 self.T[state, action, state] = 1.0
 
         # Set all dead states to be absorbing
-        for state in self.dead_states:
+        for state in self.dead_indexes:
             for action in range(self.Na_joint):
                 self.T[state, action, state] = 1.0
 
     def build_mdp(self, gamma : float = 1.0):
         """Build an MDP model of the environment."""
-        return MDP(self.Ns, 
+        return MDP(self.Ns_joint, 
                     self.Na_joint, 
                     self.T, 
                     self.initial_index,
                     self.target_indexes,
-                    self.dead_states,
+                    self.dead_indexes,
                     gamma=gamma
                     )
+
+    #################### Visualization Methods
 
     def display(self, state=None, ax=None, plot=False, highlighted_states=None):
 
@@ -353,7 +361,7 @@ class MAGridworld(object):
 
         max_occupancy_val = np.max(occupancy_vals)
 
-        for s in range(self.Ns):
+        for s in range(self.Ns_joint):
             if not(s in self.wall_indexes) \
                 and not(s in self.dead_indexes) \
                     and not(s in self.target_indexes):
@@ -396,23 +404,29 @@ class MAGridworld(object):
 def main():
 
     print('Building gridworld')
+    t_start = time.time()
     # Build the gridworld
     gridworld = MAGridworld(Nr=5, Nc=5)
 
-    for s in range(gridworld.Ns):
+    print('Constructed gridworld in {} seconds'.format(time.time() - t_start))
+
+    for s in range(gridworld.Ns_joint):
         for a in range(gridworld.Na_joint):
             assert(np.abs(np.sum(gridworld.T[s, a, :]) - 1.0) <= 1e-12)
 
-    print(gridworld.pos_from_index)
+    # Construct the corresponding MDP
+    mdp = gridworld.build_mdp()
 
-    # # Construct the corresponding MDP
-    # mdp = gridworld.build_mdp()
+    # Construct and solve the reachability LP
+    prob, x = mdp.build_reachability_LP()
+    prob.parameters()[0].value = 0.1
+    prob.solve()
+    print(prob.solution.opt_val)
 
-    # # Construct and solve the reachability LP
-    # prob, x = mdp.build_reachability_LP()
-    # prob.parameters()[0].value = 0.1
-    # prob.solve()
-    # print(prob.solution.opt_val)
+    # with open('data.pickle', 'rb') as f:
+    #     # The protocol version used is detected automatically, so we do not
+    #     # have to specify it.
+    #     data = pickle.load(f)
 
     # # Visualize the occupancy measures
     # occupancy_vars = mdp.process_occupancy_vars(x)
