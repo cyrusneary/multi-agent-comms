@@ -78,10 +78,51 @@ class MDP(object):
             Note that policy[s,a] = 0 for all a if s is absorbing.
         """
         policy = np.zeros((self.Ns, self.Na))
-        for s in self.active_states:
+        for s in range(self.Ns):
             for a in range(self.Na):
                 if not (np.sum(x[s,:]) == 0.0):
                     policy[s,a] = x[s, a] / np.sum(x[s, :])
                 else:
                     policy[s,a] = 1.0 / len(x[s,:])
         return policy
+
+    def success_probability_from_occupancy_vars(self, x : np.ndarray):
+        """
+        Compute the probability of reaching the target set from the 
+        initial state.
+
+        Parameters
+        ----------
+        x :
+            Array built such that x[s,a] represents the occupancy 
+            measure of state-action pair (s,a).
+
+        Returns
+        -------
+        success_prob : float
+            Probability of reaching the target set from the initial state.
+        """
+        succes_prob = np.sum(np.hstack(
+            [np.sum(np.multiply(x[self.active_states, :], 
+                                self.T[self.active_states, :, i]))
+                                for i in self.target_set]
+            ))
+        return succes_prob
+
+    def expected_len_from_occupancy_vars(self, x : np.ndarray):
+        """
+        Compute the expected length of the trajectories, before either
+        reaching the target set or crashing. 
+
+        Parameters
+        ----------
+        x :
+            Array built such that x[s,a] represents the occupancy 
+            measure of state-action pair (s,a).
+
+        Returns
+        -------
+        expected_len : float
+            Expected length of the trajectory.
+        """
+        return np.sum(x)
