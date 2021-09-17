@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import imageio
 import numpy as np
 import pickle
-import time
-import sys
+import sys, os, time
 
 sys.path.append('../')
 from markov_decision_process.mdp import MDP
+from optimization_problems.reachability_LP import build_reachability_LP,\
+                                                    process_occupancy_vars
 
 class MAGridworld(object):
 
@@ -18,7 +20,8 @@ class MAGridworld(object):
                 initial_state : tuple = (4, 0, 4, 3),
                 target_states : list = [(4, 4, 4, 1)],
                 dead_states : list = [],
-                walls : list = []
+                walls : list = [],
+                load_file_str : str = ''
                 ):
         """
         Initializer for the Multiagent Gridworld object.
@@ -46,55 +49,107 @@ class MAGridworld(object):
             List of positions of dead states in the gridworld.
         walls :
             List of positions of the walls in the gridworld.
+        load_file_str :
+            String representing the path of a data file to use to load a
+            pre-build multiagent gridworld object. If load_file_str = '', 
+            then the gridworld is instead constructed from scratch.
         """
 
-        self.Nr = Nr
-        self.Nc = Nc
-        self.Ns_local = self.Nr * self.Nc
-        self.N_agents = N_agents
-        self.Ns_joint = (self.Ns_local)**self.N_agents
+        if load_file_str == '':
 
-        # Actions:
-        # 0 : right
-        # 1 : up
-        # 2 : left
-        # 3 : down
-        self.Na_local = 4
-        self.Na_joint = self.Na_local**self.N_agents
+            self.Nr = Nr
+            self.Nc = Nc
+            self.Ns_local = self.Nr * self.Nc
+            self.N_agents = N_agents
+            self.Ns_joint = (self.Ns_local)**self.N_agents
 
-        self._construct_state_space()
-        self._construct_action_space()
+            # Actions:
+            # 0 : right
+            # 1 : up
+            # 2 : left
+            # 3 : down
+            self.Na_local = 4
+            self.Na_joint = self.Na_local**self.N_agents
 
-        assert len(initial_state) == self.N_agents * 2
-        self.initial_state = initial_state
-        self.initial_index = self.index_from_pos[initial_state]
-        assert self.initial_index <= self.Ns_joint - 1
+            self._construct_state_space()
+            self._construct_action_space()
 
-        assert len(target_states) > 0
-        self.target_states = target_states
-        self.target_indexes = [self.index_from_pos[t_state] 
-                                for t_state in self.target_states]
+            assert len(initial_state) == self.N_agents * 2
+            self.initial_state = initial_state
+            self.initial_index = self.index_from_pos[initial_state]
+            assert self.initial_index <= self.Ns_joint - 1
 
-        assert slip_p <= 1.0
-        self.slip_p = slip_p
+            assert len(target_states) > 0
+            self.target_states = target_states
+            self.target_indexes = [self.index_from_pos[t_state] 
+                                    for t_state in self.target_states]
 
-        self.dead_states = dead_states
-        self._construct_collision_dead_states()
-        self.dead_indexes = [self.index_from_pos[d_state]
-                                for d_state in self.dead_states]
+            assert slip_p <= 1.0
+            self.slip_p = slip_p
 
-        self.walls = walls
-        self.wall_indexes = [self.index_from_pos[w_state]
-                                for w_state in self.walls]
+            self.dead_states = dead_states
+            self._construct_collision_dead_states()
+            self.dead_indexes = [self.index_from_pos[d_state]
+                                    for d_state in self.dead_states]
 
-        self._build_transition_matrix()
+            self.walls = walls
+
+            self._build_transition_matrix()
+
+        else:
+            self.load(load_file_str)
 
     def save(self, save_file_str : str):
         """
         Save the multiagent gridworld object.
         """
+        save_dict = {}
+        save_dict['Nr'] = self.Nr
+        save_dict['Nc'] = self.Nc
+        save_dict['N_agents'] = self.N_agents
+        save_dict['Ns_local'] = self.Ns_local
+        save_dict['Ns_joint'] = self.Ns_joint
+        save_dict['Na_local'] = self.Na_local
+        save_dict['Na_joint'] = self.Na_joint
+        save_dict['initial_state'] = self.initial_state
+        save_dict['initial_index'] = self.initial_index
+        save_dict['target_states'] = self.target_states
+        save_dict['target_indexes'] = self.target_indexes
+        save_dict['slip_p'] = self.slip_p
+        save_dict['dead_states'] = self.dead_states
+        save_dict['dead_indexes'] = self.dead_indexes
+        save_dict['walls'] = self.walls
+        save_dict['T'] = self.T
+
         with open(save_file_str, 'wb') as f:
-            pickle.dump(self, f) 
+            pickle.dump(save_dict, f) 
+
+    def load(self, load_file_str : str):
+        """
+        Load the multiagent gridworld data from a file.
+        """
+        with open(load_file_str, 'rb') as f:
+            save_dict = pickle.load(f)
+
+        self.Nr= save_dict['Nr']
+        self.Nc = save_dict['Nc']
+        self.N_agents = save_dict['N_agents']
+        self.Ns_local = save_dict['Ns_local']
+        self.Ns_joint = save_dict['Ns_joint']
+        self.Na_local = save_dict['Na_local']
+        self.Na_joint = save_dict['Na_joint']
+        self.initial_state = save_dict['initial_state']
+        self.initial_index = save_dict['initial_index']
+        self.target_states = save_dict['target_states']
+        self.target_indexes = save_dict['target_indexes']
+        self.slip_p = save_dict['slip_p']
+        self.dead_states = save_dict['dead_states']
+        self.dead_indexes = save_dict['dead_indexes']
+        self.walls = save_dict['walls']
+        self.T = save_dict['T']
+
+        self._construct_state_space()
+        self._construct_action_space()
 
     def _construct_state_space(self):
         """
@@ -184,19 +239,24 @@ class MAGridworld(object):
 
                 state_r, state_c = pos[2*agent_id:(2*agent_id + 2)]
 
-                if state_c + 1 < self.Nc: # right
+                if (state_c + 1 < self.Nc 
+                        and not((state_r, state_c+1) in self.walls)): # right
                     agent_next_states[agent_id][0] = (state_r, state_c + 1)
-                if state_c - 1 >= 0: # left
+                if (state_c - 1 >= 0
+                        and not((state_r, state_c - 1) in self.walls)): # left
                     agent_next_states[agent_id][2] = (state_r, state_c - 1)
-                if state_r - 1 >= 0: # up
+                if (state_r - 1 >= 0
+                        and not((state_r - 1, state_c) in self.walls)): # up
                     agent_next_states[agent_id][1] = (state_r - 1, state_c) 
-                if state_r + 1 < self.Nr: # down
+                if (state_r + 1 < self.Nr
+                        and not((state_r + 1, state_c) in self.walls)): # down
                     agent_next_states[agent_id][3] = (state_r + 1, state_c) 
 
                 # action 0: move right
                 # action 1: move up
                 # action 2: move left
                 # action 3: move down
+                # action 4: stay
 
                 for a in range(self.Na_local):
                     local_trans_funcs[agent_id][a] = {}
@@ -274,6 +334,33 @@ class MAGridworld(object):
                     gamma=gamma
                     )
 
+    def run_trajectory(self, policy : np.ndarray):
+        """
+        Run a trajectory from the joint initial state.
+
+        Parameters
+        ----------
+        policy : 
+            Matrix representing the policy. policy[s_ind, a_ind] is the 
+            probability of taking the action indexed by a_ind from the 
+            joint state indexed by s_ind.
+
+        Returns
+        -------
+        traj : list
+            List of indexes of states. 
+        """
+        traj = []
+        traj.append(self.initial_index)
+        s = self.initial_index
+
+        while (s not in self.target_indexes) and (s not in self.dead_indexes):
+            a = np.random.choice(np.arange(self.Na_joint), p=policy[s,:])
+            s = np.random.choice(np.arange(self.Ns_joint), p=self.T[s,a,:])
+            traj.append(s)
+
+        return traj
+
     #################### Visualization Methods
 
     def display(self, state=None, ax=None, plot=False, highlighted_states=None):
@@ -297,27 +384,36 @@ class MAGridworld(object):
         for j in range(self.Nc + 1):
             ax.plot([j * grid_spacing, j * grid_spacing], [0, -max_y], color='black')
 
-        # Plot the initial state
-        (init_r, init_c) = self.initial_state
-        ax.plot(init_c * grid_spacing + grid_spacing/2, 
-                - (init_r * grid_spacing + grid_spacing/2), 
-                linestyle=None, marker='x', markersize=15, color='blue')
+        # Plot the initial states
+        for agent_id in range(self.N_agents):
+            (init_r, init_c) = self.initial_state[2*agent_id:(2*agent_id + 2)]
+            # ax.text(init_c * grid_spacing + grid_spacing/2, 
+            #         - (init_r * grid_spacing + grid_spacing/2), 
+            #         'R{}'.format(agent_id))
+            ax.plot(init_c * grid_spacing + grid_spacing/2, 
+                    - (init_r * grid_spacing + grid_spacing/2), 
+                    linestyle=None, marker='x', markersize=15, color='blue')
 
         # plot the current state
         if state is not None:
-            (state_r, state_c) = state
-            ax.plot(state_c * grid_spacing + grid_spacing/2,
-                    -(state_r * grid_spacing + grid_spacing/2), 
-                    linestyle=None, marker='o', markersize=20, color='blue')
+            for agent_id in range(self.N_agents):
+                (state_r, state_c) = state[2*agent_id:(2*agent_id + 2)]
+                ax.text(state_c * grid_spacing + grid_spacing/2, 
+                    - (state_r * grid_spacing + grid_spacing/2), 
+                    'R{}'.format(agent_id))
+                # ax.plot(state_c * grid_spacing + grid_spacing/2,
+                #         -(state_r * grid_spacing + grid_spacing/2), 
+                #         linestyle=None, marker='o', markersize=20, color='blue')
 
         # Plot the target locations
         for goal in self.target_states:
-            (goal_r, goal_c) = goal
-            goal_square = patches.Rectangle((goal_c, 
-                                            -(goal_r + 1) * grid_spacing), 
-                                            grid_spacing, grid_spacing, 
-                                            fill=True, color='green')
-            ax.add_patch(goal_square)
+            for agent_id in range(self.N_agents):
+                (goal_r, goal_c) = goal[2*agent_id:(2*agent_id + 2)]
+                goal_square = patches.Rectangle((goal_c, 
+                                                -(goal_r + 1) * grid_spacing), 
+                                                grid_spacing, grid_spacing, 
+                                                fill=True, color='green')
+                ax.add_patch(goal_square)
 
         # Plot walls
         for wall in self.walls:
@@ -328,113 +424,122 @@ class MAGridworld(object):
                                             fill=True, color='black')
             ax.add_patch(wall_square)
 
-        # Plot the obstacles
-        for obstacle in self.dead_states:
-            (obs_r, obs_c) = obstacle
-            obs_square = patches.Rectangle((obs_c * grid_spacing, 
-                                            -(obs_r + 1) * grid_spacing), 
-                                            grid_spacing, grid_spacing, 
-                                            fill=True, color='red')
-            ax.add_patch(obs_square)
+        # # Plot the obstacles
+        # for obstacle in self.dead_states:
+        #     (obs_r, obs_c) = obstacle
+        #     obs_square = patches.Rectangle((obs_c * grid_spacing, 
+        #                                     -(obs_r + 1) * grid_spacing), 
+        #                                     grid_spacing, grid_spacing, 
+        #                                     fill=True, color='red')
+        #     ax.add_patch(obs_square)
 
         if plot:
             plt.show()
 
-    def visualize_occupancy_measures(self, 
-                                    occupancy_vals, 
-                                    ax=None, 
-                                    plot=True, 
-                                    color='black', 
-                                    highlighted_states=None):
+    def create_trajectories_gif(self,
+                                trajectories_list : list, 
+                                save_folder_str : str,
+                                save_file_name : str = 'ma_gridworld.gif'):
+        """
+        Create a gif illustrating a collection of trajectories in the
+        multiagent environment.
 
-        # Display parameters
-        grid_spacing = 1
-        max_x = grid_spacing * self.Nc
-        max_y = grid_spacing * self.Nr
+        Parameters
+        ----------
+        trajectories_list : 
+            A list of trajectories. Each trajectory is itself a list
+            of the indexes of joint states.
+        save_folder_str :
+            The folder in which to save the gif.
+        save_file_name :
+            The desired name of the output file.
+        """
 
-        if ax is None:
-            fig = plt.figure(figsize=(8,8))
-            ax = fig.add_subplot(111, aspect='equal')
-            plot = True
+        i = 0
+        filenames = []
+        for traj in trajectories_list:
+            for state_ind in traj:
+                state = self.pos_from_index[state_ind]
 
-        self.display(ax=ax, highlighted_states=highlighted_states)
+                # Create the plot of the current state
+                fig = plt.figure(figsize=(8,8))
+                ax = fig.add_subplot(111, aspect='equal')
+                self.display(state=state, ax=ax, plot=False)
 
-        max_occupancy_val = np.max(occupancy_vals)
+                # Save the plot of the current state
+                filename = os.path.join(save_folder_str, 'f{}.png'.format(i))
+                filenames.append(filename)
+                i = i + 1
+                plt.savefig(filename)
 
-        for s in range(self.Ns_joint):
-            if not(s in self.wall_indexes) \
-                and not(s in self.dead_indexes) \
-                    and not(s in self.target_indexes):
-
-                row, col = self.pos_from_index[s]
-
-                for action in range(self.Na):
-                    x = occupancy_vals[s, action]
-                    if action == 0: # trying to move right
-                        next_row = row
-                        next_col = col + 1
-
-                    if action == 1: # trying to move up
-                        next_row = row - 1
-                        next_col = col
-
-                    if action == 2: # trying to move left
-                        next_row = row
-                        next_col = col - 1
-
-                    if action == 3: # trying to move down
-                        next_row = row + 1
-                        next_col = col
-
-                    start_x = col * grid_spacing + grid_spacing/2
-                    start_y = -(row * grid_spacing + grid_spacing/2)
-
-                    dx = (next_col - col) * grid_spacing
-                    dy = -(next_row - row) * grid_spacing
-
-                    ax.arrow(start_x, start_y, dx, dy,
-                            shape='full', linewidth=2.0, 
-                            length_includes_head=True,
-                            head_width=0.2, color=color, 
-                            alpha=np.log(x/max_occupancy_val+1.0))
-
-        if plot:
-            plt.show()
-
+        im_list = []
+        for filename in filenames:
+            im_list.append(imageio.imread(filename))
+        imageio.mimwrite(os.path.join(save_folder_str, save_file_name),
+                            im_list,
+                            duration=0.5)
+        # # Write the gif from all of the saved pictures
+        # with imageio.get_writer(os.path.join(save_folder_str, save_file_name),
+        #                             mode='I') as writer:
+        #     for filename in filenames:
+        #         image = imageio.imread(filename)
+        #         writer.append_data(image)
+        
+        # Clean up the folder of all the saved pictures
+        for filename in set(filenames):
+            os.remove(filename)
+        
 def main():
 
+    ##### BUILD THE GRIDWOLRD FROM SCRATCH
+
+    # Build the gridworld
     print('Building gridworld')
     t_start = time.time()
-    # Build the gridworld
-    gridworld = MAGridworld(Nr=5, Nc=5)
-
+    gridworld = MAGridworld(Nr=5, Nc=5, walls=[(0,2), (2,2), (4,2)])
     print('Constructed gridworld in {} seconds'.format(time.time() - t_start))
 
+    # Sanity check on the transition matrix
     for s in range(gridworld.Ns_joint):
         for a in range(gridworld.Na_joint):
             assert(np.abs(np.sum(gridworld.T[s, a, :]) - 1.0) <= 1e-12)
+
+    # Save the constructed gridworld
+    save_file_str = os.path.join(os.path.abspath(os.path.curdir), 
+                                    'saved_environments', 'ma_gridworld.pkl')
+    gridworld.save(save_file_str)
+
+    # ##### LOAD A PRE-CONSTRUCTED GRIDWORLD
+    # load_file_str = os.path.join(os.path.abspath(os.path.curdir),
+    #                                 'saved_environments', 'ma_gridworld.pkl')
+    # gridworld = MAGridworld(load_file_str=load_file_str)
+    # print('Loaded multiagent gridworld.')
+
+    ##### Solve the reachability problem    
+    
+    gridworld.display()
 
     # Construct the corresponding MDP
     mdp = gridworld.build_mdp()
 
     # Construct and solve the reachability LP
-    prob, x = mdp.build_reachability_LP()
+    prob, x = build_reachability_LP(mdp)
     prob.parameters()[0].value = 0.1
     prob.solve()
     print(prob.solution.opt_val)
 
-    # with open('data.pickle', 'rb') as f:
-    #     # The protocol version used is detected automatically, so we do not
-    #     # have to specify it.
-    #     data = pickle.load(f)
+    # Get the optimal joint policy
+    occupancy_vars = process_occupancy_vars(x)
+    policy = mdp.policy_from_occupancy_vars(occupancy_vars)
 
-    # # Visualize the occupancy measures
-    # occupancy_vars = mdp.process_occupancy_vars(x)
-    # gridworld.visualize_occupancy_measures(occupancy_vars)
+    num_trajectories = 10
+    trajectory_list = []
+    for t_ind in range(num_trajectories):
+        trajectory_list.append(gridworld.run_trajectory(policy))
 
-    # # Solve for the corresponding policy
-    # policy = mdp.policy_from_occupancy_vars(occupancy_vars)
-    # print(policy)
+    gif_save_folder = os.path.join(os.path.abspath(os.path.curdir), 'gifs')
+
+    gridworld.create_trajectories_gif(trajectory_list, gif_save_folder)
 
 if __name__ == '__main__':
     main()
