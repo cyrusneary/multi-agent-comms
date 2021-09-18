@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy as cp
 from numpy.lib.function_base import average
+from scipy.special import rel_entr, entr
 
 class MDP(object):
     """Class representing an MDP"""
@@ -126,3 +127,34 @@ class MDP(object):
             Expected length of the trajectory.
         """
         return np.sum(x)
+
+    def compute_joint_entropy(self, x : np.ndarray):
+        """
+        Compute the entropy of the trajectories of joint states.
+
+        Parameters
+        ----------
+        x :
+            Array built such that x[s,a] represents the occupancy 
+            measure of state-action pair (s,a).
+
+        Returns
+        -------
+        joint_entropy : float
+            Entropy value of the distribution of trajectories of 
+            joint states.
+        """
+        y = np.sum(x[self.active_states, :], axis=1)
+        y = np.vstack([y for i in range(self.Na)]).T
+
+        entropy1 = -np.sum(rel_entr(x[self.active_states, :], y))
+        entropy2 = np.sum(np.hstack(
+                    [np.sum(np.multiply(x[self.active_states, :], 
+                                entr(self.T[self.active_states, :, i])))
+                        for i in range(self.Ns)]
+                    )
+                )
+
+        joint_entropy = entropy1 + entropy2
+
+        return joint_entropy
