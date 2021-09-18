@@ -21,14 +21,20 @@ def build_reachability_LP(mdp: MDP, exp_len_coef : float = 1.0):
     -------
     prob : cvxpy Problem
         The linear program to be solved.
-    x : cvxpy Variable
-        A Ns x Na variable where x[s,a] represents the occupancy
-        measure of state-action pair (s,a).
+    vars : list of cvxpy Variables
+        vars[0] is a (Ns,Na) variable x, where x[s,a] represents the 
+        occupancy measure of state-action pair (s,a).
+    params : list of cvxpy Parameters
+        params[0] is the expected length coefficient used to define
+        the optimization objective.
     """
 
     ##### Define the problem variables
     x = cp.Variable(shape=(mdp.Ns, mdp.Na), name='x')
     exp_len_coef = cp.Parameter(name='expLenCoef', value=exp_len_coef)
+
+    vars = [x]
+    params = [exp_len_coef]
 
     ##### Define the problem constraints
     constraints = []
@@ -69,7 +75,7 @@ def build_reachability_LP(mdp: MDP, exp_len_coef : float = 1.0):
     ##### Create the problem
     prob = cp.Problem(obj, constraints)
 
-    return prob, x
+    return prob, vars, params
 
 def process_occupancy_vars(x : cp.Variable):
     """

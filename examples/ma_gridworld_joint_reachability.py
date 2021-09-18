@@ -47,17 +47,17 @@ gridworld.save(save_file_str)
 ##### Examine the tradeoff between success probability and expected len
 mdp = gridworld.build_mdp()
 # Construct the reachability LP
-prob, x = build_reachability_LP(mdp, exp_len_coef=0.0)
+prob, vars, params = build_reachability_LP(mdp, exp_len_coef=0.0)
 exp_len_coeff_list = np.linspace(0.0, 0.5, num=50)
 
 succ_prob_list = []
 exp_len_list = []
 
 for exp_len_coeff_val in exp_len_coeff_list:
-    prob.parameters()[0].value = exp_len_coeff_val
+    params[0].value = exp_len_coeff_val
     prob.solve()
     # Get the optimal joint policy
-    occupancy_vars = process_occupancy_vars(x)
+    occupancy_vars = process_occupancy_vars(vars[0])
     succ_prob_list.append(mdp.success_probability_from_occupancy_vars(occupancy_vars))
     exp_len_list.append(mdp.expected_len_from_occupancy_vars(occupancy_vars))
 
@@ -84,11 +84,11 @@ plt.show()
 mdp = gridworld.build_mdp()
 
 # Construct and solve the reachability LP
-prob, x = build_reachability_LP(mdp, exp_len_coef=0.1)
+prob, vars, params = build_reachability_LP(mdp, exp_len_coef=0.1)
 prob.solve()
 
 # Get the optimal joint policy
-occupancy_vars = process_occupancy_vars(x)
+occupancy_vars = process_occupancy_vars(vars[0])
 policy = mdp.policy_from_occupancy_vars(occupancy_vars)
 
 success_prob = mdp.success_probability_from_occupancy_vars(occupancy_vars)
