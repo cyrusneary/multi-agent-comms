@@ -89,7 +89,7 @@ mdp = gridworld.build_mdp()
 t = time.time()
 prob, vars, params = build_joint_entropy_program(mdp, 
                                                 exp_len_coef=0.1,
-                                                entropy_coef=0.001)
+                                                entropy_coef=0.05)
 print('Constructed optimization problem in {} seconds.'.format(time.time() - t)) 
 
 t = time.time()
@@ -110,22 +110,22 @@ print(('Success probability: {}, \n \
                                     expected_len, 
                                     joint_entropy)))
 
-# ##### Empirically measure imaginary play success
-# num_trajectories = 10000
-# success_count = 0
-# for t_ind in range(num_trajectories):
-#     if gridworld.run_trajectory(policy, max_steps=50)[-1] in gridworld.target_indexes:
-#         success_count = success_count + 1
-# print('Imaginary play success rate: {}'.format(success_count / num_trajectories))
+##### Empirically measure imaginary play success
+num_trajectories = 10000
+success_count = 0
+for t_ind in range(num_trajectories):
+    if gridworld.run_trajectory(policy, max_steps=50)[-1] in gridworld.target_indexes:
+        success_count = success_count + 1
+print('Imaginary play success rate: {}'.format(success_count / num_trajectories))
 
-# ##### Create a GIF
-# num_trajectories = 10
-# trajectory_list = []
-# for t_ind in range(num_trajectories):
-#     trajectory_list.append(gridworld.run_trajectory(policy, max_steps=50))
+##### Create a GIF
+num_trajectories = 10
+trajectory_list = []
+for t_ind in range(num_trajectories):
+    trajectory_list.append(gridworld.run_trajectory(policy, max_steps=50))
 
-# gif_save_folder = os.path.join(os.path.abspath(os.path.curdir), 'gifs')
+gif_save_folder = os.path.join(os.path.abspath(os.path.curdir), 'gifs')
 
-# gridworld.create_trajectories_gif(trajectory_list, 
-#                                     gif_save_folder,
-#                                     save_file_name='ma_gridworld_joint_entropy.gif')
+gridworld.create_trajectories_gif(trajectory_list, 
+                                    gif_save_folder,
+                                    save_file_name='ma_gridworld_joint_entropy.gif')

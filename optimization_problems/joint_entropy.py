@@ -8,7 +8,8 @@ from markov_decision_process.mdp import MDP
 
 def build_joint_entropy_program(mdp: MDP, 
                                 exp_len_coef : float = 0.1,
-                                entropy_coef : float = 0.1):
+                                entropy_coef : float = 0.1,
+                                max_length_constr : int = 100):
     """
     Construct a convex program to solve for a set of occupancy measures 
     that respect the MDP dynamics while maximizing the probability of
@@ -19,14 +20,29 @@ def build_joint_entropy_program(mdp: MDP,
     mdp :
         An object representing the MDP on which the reachability problem
         is to be solved.
+    exp_len_coef :
+        Coefficient on the expected length term in the definition of
+        the optimization objective.
+    entropy_coef :
+        Coefficient on the entropy term in the definition of the
+        optimization objective.
+    max_length_constr : 
+        Hard constraint on the maximum expected length of the 
+        trajectories. This constraint is necessary to ensure that the 
+        optimization algorithm terminates.
 
     Returns
     -------
     prob : cvxpy Problem
         The linear program to be solved.
-    x : cvxpy Variable
-        A Ns x Na variable where x[s,a] represents the occupancy
-        measure of state-action pair (s,a).
+    vars : list of cvxpy Variables
+        vars[0] is a (Ns,Na) variable x, where x[s,a] represents the 
+        occupancy measure of state-action pair (s,a).
+    params : list of cvxpy Parameters
+        params[0] is the expected length coefficient used to define
+        the optimization objective.
+        params[1] is the entropy coefficient used to define the
+        optimization objective.
     """
 
     ##### Define the problem variables
@@ -51,6 +67,8 @@ def build_joint_entropy_program(mdp: MDP,
 
     # Absorbing states are set to have no occupancy measure
     constraints.append(x[mdp.absorbing_states, :] == 0.0)
+
+    constraints.append(cp.sum(x) <= max_length_constr)
 
     # The remaining states satisfy the balance equations
     occupancy_out = cp.sum(x[mdp.active_states, :], axis=1)
