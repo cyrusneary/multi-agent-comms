@@ -232,10 +232,10 @@ class MAGridworld(object):
 
         for s in range(self.Ns_joint):
 
-            # Check if the state is absorbing before assigning 
-            # any probability values.
-            if (s in self.target_indexes) or (s in self.dead_indexes):
-                continue
+            # # Check if the state is absorbing before assigning 
+            # # any probability values.
+            # if (s in self.target_indexes) or (s in self.dead_indexes):
+            #     continue
 
             # Get the tuple of row and column positions of all agents
             pos = self.pos_from_index[s] 
@@ -331,15 +331,15 @@ class MAGridworld(object):
 
                     self.T[s, a_ind, next_s_ind] = prob_transition
                     
-        # Set all target states to be absorbing
-        for state in self.target_indexes:
-            for action in range(self.Na_joint):
-                self.T[state, action, state] = 1.0
+        # # Set all target states to be absorbing
+        # for state in self.target_indexes:
+        #     for action in range(self.Na_joint):
+        #         self.T[state, action, state] = 1.0
 
-        # Set all dead states to be absorbing
-        for state in self.dead_indexes:
-            for action in range(self.Na_joint):
-                self.T[state, action, state] = 1.0
+        # # Set all dead states to be absorbing
+        # for state in self.dead_indexes:
+        #     for action in range(self.Na_joint):
+        #         self.T[state, action, state] = 1.0
 
     def build_mdp(self, gamma : float = 1.0):
         """Build an MDP model of the environment."""
@@ -352,7 +352,7 @@ class MAGridworld(object):
                     gamma=gamma
                     )
 
-    def run_trajectory(self, policy : np.ndarray, max_steps : int = 30):
+    def run_trajectory(self, policy : np.ndarray, max_steps : int = 50):
         """
         Run a trajectory from the joint initial state implementing the
         specified policy with full communication.
@@ -383,7 +383,7 @@ class MAGridworld(object):
 
     def run_trajectory_imaginary(self, 
                                 policy : np.ndarray, 
-                                max_steps : int = 30):
+                                max_steps : int = 50):
         """
         Run a trajectory from the joint initial state under imaginary 
         play implementing the specified joint policy.
@@ -400,32 +400,55 @@ class MAGridworld(object):
         traj : list
             List of indexes of states. 
         """
-        # TODO: Make this code general for N agents.
         # TODO: Verify that this code actually implements fictitious play
         # how we want it to. I don't think the true next state should
         # just be the composition of each of the individual next states.
-        traj = []
-        s_tuple = self.pos_from_index[self.initial_index]
-        s1_tuple = s_tuple
-        s2_tuple = s_tuple
-        s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
 
-        s1 = self.index_from_pos[s1_tuple]
-        s2 = self.index_from_pos[s2_tuple]
+        traj = []
+        agent_s_tuples = {}
+        agent_s_inds = {}
+        agent_a_inds = {}
+
+        actions = np.arange(self.Na_joint)
+        states = np.arange(self.Ns_joint)
+
+        s_tuple = self.pos_from_index[self.initial_index]
+
+        for agent_id in range(self.N_agents):
+            agent_s_tuples[agent_id] = s_tuple
+            agent_s_inds[agent_id] = \
+                self.index_from_pos[agent_s_tuples[agent_id]]
+        
+        s_tuple = ()
+        for agent_id in range(self.N_agents):
+            s_tuple = (s_tuple
+                        + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
         s = self.index_from_pos[s_tuple]
         traj.append(s)
 
-        while ((s not in self.target_indexes) and (s not in self.dead_indexes)
+        while ((s not in self.target_indexes) 
+                    and (s not in self.dead_indexes)
                     and len(traj) <= max_steps):
-            a1 = np.random.choice(np.arange(self.Na_joint), p=policy[s1,:])
-            a2 = np.random.choice(np.arange(self.Na_joint), p=policy[s2,:])
-            s1 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s1,a1,:])
-            s2 = np.random.choice(np.arange(self.Ns_joint), p=self.T[s2,a2,:])
+            for agent_id in range(self.N_agents):
+                # Get the agent's action distribution from the policy.
+                act_dist = policy[agent_s_inds[agent_id], :]
 
-            s1_tuple = self.pos_from_index[s1]
-            s2_tuple = self.pos_from_index[s2]
+                # Get the team's action, as imagined by the agent.
+                act = np.random.choice(actions, p=act_dist)
 
-            s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
+                # Get the team's next state, as imagined by the agent.
+                s_next_ind = np.random.choice(states, p=self.T[s, act, :])
+                s_next_tuple = self.pos_from_index[s_next_ind]
+
+                agent_a_inds[agent_id] = act
+                agent_s_inds[agent_id] = s_next_ind
+                agent_s_tuples[agent_id] = s_next_tuple
+
+            # Construct the true team next state
+            s_tuple = ()
+            for agent_id in range(self.N_agents):
+                s_tuple = (s_tuple
+                        + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
             s = self.index_from_pos[s_tuple]
             traj.append(s)
 
@@ -433,19 +456,12 @@ class MAGridworld(object):
 
         # traj = []
         # s_tuple = self.pos_from_index[self.initial_index]
+        # s1_tuple = s_tuple
+        # s2_tuple = s_tuple
+        # s_tuple = s1_tuple[0:2] + s2_tuple[2:4]
 
-        # agent_s_tuples = {}
-        # agent_s_inds = {}
-        # agent_a_inds = {}
-
-        # for agent_id in range(self.N_agents):
-        #     agent_s_tuples[agent_id] = s_tuple
-        #     agent_s_inds[agent_id] = self.index_from_pos[agent_s_tuples[agent_id]]
-        
-        # for agent_id in range(self.N_agents):
-        #     s_tuple = (s_tuple
-        #                 + agent_s_tuples[agent_s_tuples][2*agent_id:(2*agent_id + 2)])
-
+        # s1 = self.index_from_pos[s1_tuple]
+        # s2 = self.index_from_pos[s2_tuple]
         # s = self.index_from_pos[s_tuple]
         # traj.append(s)
 
