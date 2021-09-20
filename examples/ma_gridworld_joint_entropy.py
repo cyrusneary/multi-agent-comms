@@ -8,6 +8,7 @@ from environments.ma_gridworld import MAGridworld
 from markov_decision_process.mdp import MDP
 from optimization_problems.joint_entropy import build_joint_entropy_program,\
                                                     process_occupancy_vars
+from utils.process_occupancy import *
 
 # #### BUILD THE GRIDWOLRD FROM SCRATCH
 
@@ -44,44 +45,7 @@ load_file_str = os.path.join(os.path.abspath(os.path.curdir),
 gridworld = MAGridworld(load_file_str=load_file_str)
 print('Loaded multiagent gridworld.')
 
-# ##### Examine the tradeoff between success probability and expected len
-# mdp = gridworld.build_mdp()
-# # Construct the reachability LP
-# prob, x = build_joint_entropy_program(mdp, 
-#                                         exp_len_coef=0.0,
-#                                         entropy_coef=0.0)
-# exp_len_coeff_list = np.linspace(0.0, 0.5, num=50)
-
-# succ_prob_list = []
-# exp_len_list = []
-
-# for exp_len_coeff_val in exp_len_coeff_list:
-#     prob.parameters()[0].value = exp_len_coeff_val
-#     prob.solve()
-#     # Get the optimal joint policy
-#     occupancy_vars = process_occupancy_vars(x)
-#     succ_prob_list.append(mdp.success_probability_from_occupancy_vars(occupancy_vars))
-#     exp_len_list.append(mdp.expected_len_from_occupancy_vars(occupancy_vars))
-
-# fig = plt.figure()
-# ax = fig.add_subplot(211)
-# ax.plot(exp_len_coeff_list, succ_prob_list, 
-#         linewidth=3, marker='o', label='Success Probability')
-# ax.grid()
-# ax.set_xlabel('Expected Length Coefficient')
-# ax.set_ylabel('Success Probability')
-
-# ax = fig.add_subplot(212)
-# ax.plot(exp_len_coeff_list, exp_len_list, 
-#         linewidth=3, marker='o', label='Expected Length')
-# ax.grid()
-# ax.set_xlabel('Expected Length Coefficient')
-# ax.set_ylabel('Expected Length')
-
-# plt.show()
-
-##### Solve and visualize the reachability problem for a reasonable value
-##### of the expected length coefficient
+##### Solve and visualize the problem 
 # Construct the corresponding MDP
 mdp = gridworld.build_mdp()
 
@@ -98,11 +62,11 @@ print('Solved the optimization problem in {} seconds'.format(time.time() - t))
 
 # Get the optimal joint policy
 occupancy_vars = process_occupancy_vars(vars[0])
-policy = mdp.policy_from_occupancy_vars(occupancy_vars)
+policy = policy_from_occupancy_vars(mdp, occupancy_vars)
 
-success_prob = mdp.success_probability_from_occupancy_vars(occupancy_vars)
-expected_len = mdp.expected_len_from_occupancy_vars(occupancy_vars)
-joint_entropy = mdp.compute_joint_entropy(occupancy_vars)
+success_prob = success_probability_from_occupancy_vars(mdp, occupancy_vars)
+expected_len = expected_len_from_occupancy_vars(mdp, occupancy_vars)
+joint_entropy = compute_joint_entropy(mdp, occupancy_vars)
 
 print(('Success probability: {}, \n \
         expected length: {}, \n \

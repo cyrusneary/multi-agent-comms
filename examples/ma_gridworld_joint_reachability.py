@@ -6,8 +6,8 @@ sys.path.append('../')
 
 from environments.ma_gridworld import MAGridworld
 from markov_decision_process.mdp import MDP
-from optimization_problems.reachability_LP import build_reachability_LP,\
-                                                    process_occupancy_vars
+from optimization_problems.reachability_LP import build_reachability_LP
+from utils.process_occupancy import *
 
 #### BUILD THE GRIDWOLRD FROM SCRATCH
 
@@ -58,8 +58,9 @@ for exp_len_coeff_val in exp_len_coeff_list:
     prob.solve()
     # Get the optimal joint policy
     occupancy_vars = process_occupancy_vars(vars[0])
-    succ_prob_list.append(mdp.success_probability_from_occupancy_vars(occupancy_vars))
-    exp_len_list.append(mdp.expected_len_from_occupancy_vars(occupancy_vars))
+    succ_prob_list.append(success_probability_from_occupancy_vars(mdp, 
+                                                                occupancy_vars))
+    exp_len_list.append(expected_len_from_occupancy_vars(mdp, occupancy_vars))
 
 fig = plt.figure()
 ax = fig.add_subplot(211)
@@ -89,10 +90,10 @@ prob.solve()
 
 # Get the optimal joint policy
 occupancy_vars = process_occupancy_vars(vars[0])
-policy = mdp.policy_from_occupancy_vars(occupancy_vars)
+policy = policy_from_occupancy_vars(mdp, occupancy_vars)
 
-success_prob = mdp.success_probability_from_occupancy_vars(occupancy_vars)
-expected_len = mdp.expected_len_from_occupancy_vars(occupancy_vars)
+success_prob = success_probability_from_occupancy_vars(mdp, occupancy_vars)
+expected_len = expected_len_from_occupancy_vars(mdp, occupancy_vars)
 
 print('Success probability: {}, expected length: {}'.format(success_prob, 
                                                             expected_len))

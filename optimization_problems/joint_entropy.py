@@ -116,18 +116,3 @@ def build_joint_entropy_program(mdp: MDP,
     prob = cp.Problem(obj, constraints)
 
     return prob, vars, params
-
-def process_occupancy_vars(x : cp.Variable):
-    """
-    Make sure all of the occupancy variables are positive.
-    It's sometimes possible for the occupancy variables to be very small 
-    negative numbers due to numerical errors.
-    """
-    x = x.value
-    Ns, Na = x.shape
-    for s in range(Ns):
-        for a in range(Na):
-            if x[s,a] < 0.0:
-                assert np.abs(x[s,a]) <= 1e-9
-                x[s,a] = 0.0
-    return x

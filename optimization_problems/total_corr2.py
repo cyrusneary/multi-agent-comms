@@ -13,8 +13,8 @@ def build_linearized_program(mdp: MDP,
                             N_agents : int,
                             agent_state_size_list : list,
                             agent_action_size_list : list,
-                            check_agent_state_action : function,
-                            check_agent_state : function,
+                            check_agent_state_action,
+                            check_agent_state,
                             reachability_coef : float = 1.0,
                             exp_len_coef : float = 0.1,
                             total_corr_coef : float = 0.1,
@@ -191,82 +191,3 @@ def build_linearized_program(mdp: MDP,
     prob = cp.Problem(obj, constraints)
 
     return prob, vars, params, f_grad, g_grad
-
-def compute_total_correlation(mdp : MDP,
-                                N_agents : int,
-                                agent_state_size_list : list,
-                                agent_action_size_list : list,
-                                f_grad : dict,
-                                g_grad : dict,
-                                x : np.ndarray):
-    """
-    Compute the total correlation given the occupancy measure variables.
-
-    Parameters
-    ----------
-    mdp :
-        An object representing the MDP on which the reachability problem
-        is to be solved.
-    N_agents :
-        The number of agents involved in the problem.
-    agent_state_size_list :
-        A list of integers specifying the number of local states for
-        each agent.
-    agent_action_size_list :
-        A list of integers specifying the number of local actions for
-        each agent.
-    check_agent_state_action :
-        A function indicating whether or not the state-action pair of
-        a particular agent agrees with a given joint state-action pair.
-    check_agent_state :
-        A function indicating whether or not the state pair of
-        a particular agent agrees with a given joint state pair.
-    exp_len_coef :
-        Coefficient on the expected length term in the definition of
-        the optimization objective.
-    total_corr_coef :
-        Coefficient on the total correlation term in the definition of the
-        optimization objective.
-    max_length_constr : 
-        Hard constraint on the maximum expected length of the 
-        trajectories. This constraint is necessary to ensure that the 
-        optimization algorithm terminates.
-
-    Return
-    ------
-    total_corr :
-        The total correlation given the occupancy measure variables.
-    """
-    y = np.sum(x[mdp.active_states, :], axis=1)
-    y = np.vstack([y for i in range(mdp.Na)]).T
-
-    joint_entropy = -np.sum(rel_entr(x[mdp.active_states, :], y))
-
-    convex_term = 0.0
-    for i in range(N_agents):
-        for s_local in range(agent_state_size_list[i]):
-            for a_local in range(agent_action_size_list[i]):
-                numerator = np.sum(x[np.where(f_grad[i][s_local][a_local])])
-                denominator = np.sum(x[np.where(g_grad[i][s_local])])
-                ratio_term = numerator / denominator
-                log_term = np.log(ratio_term)
-
-                convex_term = convex_term + numerator * log_term
-
-    total_corr = - convex_term - joint_entropy
-    return total_corr
-
-def process_occupancy_vars(x : cp.Variable):
-    """
-    Make sure all of the occupancy variables are positive.
-    It's sometimes possible for the occupancy variables to be very small 
-    negative numbers due to numerical errors.
-    """
-    x = x.value
-    Ns, Na = x.shape
-    for s in range(Ns):
-        for a in range(Na):
-            if x[s,a] < 0.0:
-                assert np.abs(x[s,a]) <= 1e-9
-                x[s,a] = 0.0
-    return x
