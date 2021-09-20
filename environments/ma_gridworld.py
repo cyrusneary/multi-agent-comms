@@ -1,4 +1,4 @@
-from cvxpy.expressions.cvxtypes import index
+# from cvxpy.expressions.cvxtypes import index
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import imageio
@@ -173,6 +173,13 @@ class MAGridworld(object):
             self.pos_from_index[i] = np.unravel_index(i, position_shape)
             self.index_from_pos[self.pos_from_index[i]] = i
 
+        self.local_index_from_pos = {}
+        self.local_pos_from_index = {}
+
+        for i in range(self.Ns_local):
+            self.local_pos_from_index[i] = np.unravel_index(i, (self.Nr, self.Nc))
+            self.local_index_from_pos[self.local_pos_from_index[i]] = i
+
     def _construct_action_space(self):
         """
         Build two maps providing action indexes from (a1, a2, ..., aN)
@@ -340,6 +347,78 @@ class MAGridworld(object):
         # for state in self.dead_indexes:
         #     for action in range(self.Na_joint):
         #         self.T[state, action, state] = 1.0
+
+    def check_agent_state_action(self,
+                                agent_id : int,
+                                local_state_ind : int,
+                                team_state_ind : int,
+                                local_action_ind : int,
+                                team_action_ind : int):
+        """
+        Function to check whether a particular agent is occupying a 
+        particular local state-action pair, when the team is occupying
+        a particular joint state-action pair.
+
+        Parameters
+        ----------
+        agent_id :
+            The index of the agent.
+        local_state_ind :
+            The index of the local state of the agent.
+        team_state_ind :
+            The index of the joint state of the team.
+        local_action_ind :
+            The index of the local action of the agent.
+        team_action_ind :
+            The index of the joint action of the team.
+
+        Returns
+        -------
+        tf : bool
+            Return True if the agent's local state-action pair agrees
+            with the joint state-action pair, and false otherwise.
+        """
+        local_state_tuple = self.local_pos_from_index[local_state_ind]
+        team_state_tuple = self.pos_from_index[team_state_ind]
+        team_action_tuple = self.action_tuple_from_index[team_action_ind]
+
+        if (local_state_tuple == team_state_tuple[2*agent_id:(2*agent_id + 2)]
+            and team_action_tuple[agent_id] == local_action_ind):
+            return True
+        else:
+            return False
+
+    def check_agent_state(self,
+                        agent_id : int,
+                        local_state_ind : int,
+                        team_state_ind : int):
+        """
+        Function to check whether a particular agent is occupying a 
+        particular local state, when the team is occupying a particular 
+        joint state.
+
+        Parameters
+        ----------
+        agent_id :
+            The index of the agent.
+        local_state_ind :
+            The index of the local state of the agent.
+        team_state_ind :
+            The index of the joint state of the team.
+
+        Returns
+        -------
+        tf : bool
+            Return True if the agent's local state agrees with the joint
+            state, and false otherwise.
+        """
+        local_state_tuple = self.local_pos_from_index[local_state_ind]
+        team_state_tuple = self.pos_from_index[team_state_ind]
+
+        if local_state_tuple == team_state_tuple[2*agent_id:(2*agent_id + 2)]:
+            return True
+        else:
+            return False
 
     def build_mdp(self, gamma : float = 1.0):
         """Build an MDP model of the environment."""
