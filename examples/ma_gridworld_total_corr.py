@@ -81,7 +81,7 @@ prob, vars, params, f_grad, g_grad = build_linearized_program(mdp,
                                             reachability_coef=10.0, # 10.0
                                             exp_len_coef=0.03, #0.05
                                             total_corr_coef=4.0) #1.0
-print('Constructed optimization problem in {} seconds.'.format(time.time() - t)) 
+print('Constructed optimization problem in {} seconds.'.format(time.time()-t)) 
 
 t = time.time()
 prob_init.solve(verbose=True)

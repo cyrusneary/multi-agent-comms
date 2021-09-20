@@ -13,8 +13,8 @@ def build_linearized_program(mdp: MDP,
                             N_agents : int,
                             agent_state_size_list : list,
                             agent_action_size_list : list,
-                            check_agent_state_action,
-                            check_agent_state,
+                            check_agent_state_action : function,
+                            check_agent_state : function,
                             reachability_coef : float = 1.0,
                             exp_len_coef : float = 0.1,
                             total_corr_coef : float = 0.1,
@@ -37,12 +37,18 @@ def build_linearized_program(mdp: MDP,
     agent_action_size_list :
         A list of integers specifying the number of local actions for
         each agent.
+    check_agent_state_action :
+        A function indicating whether or not the state-action pair of
+        a particular agent agrees with a given joint state-action pair.
+    check_agent_state :
+        A function indicating whether or not the state pair of
+        a particular agent agrees with a given joint state pair.
     exp_len_coef :
         Coefficient on the expected length term in the definition of
         the optimization objective.
     total_corr_coef :
-        Coefficient on the total correlation term in the definition of the
-        optimization objective.
+        Coefficient on the total correlation term in the definition of 
+        the optimization objective.
     max_length_constr : 
         Hard constraint on the maximum expected length of the 
         trajectories. This constraint is necessary to ensure that the 
@@ -58,8 +64,8 @@ def build_linearized_program(mdp: MDP,
     params : list of cvxpy Parameters
         params[0] is the expected length coefficient used to define
         the optimization objective.
-        params[1] is the total correlation coefficient used to define the
-        optimization objective.
+        params[1] is the total correlation coefficient used to define
+        the optimization objective.
         params[2] is the last guess at a solution.
     """
 
@@ -70,7 +76,7 @@ def build_linearized_program(mdp: MDP,
     f_grad = {}
     g_grad = {}
 
-    print('Building onehot vectors.')
+    print('Building gradient vectors.')
     t_start = time.time()
     for i in range(N_agents):
         f_grad[i] = {}
@@ -88,10 +94,12 @@ def build_linearized_program(mdp: MDP,
                 f_grad[i][s][a] = np.zeros((mdp.Ns, mdp.Na))
                 for s_joint in range(mdp.Ns):
                     for a_joint in range(mdp.Na):
-                        if check_agent_state_action(i, s, s_joint, a, a_joint):
+                        if check_agent_state_action(i, 
+                                                    s, s_joint, 
+                                                    a, a_joint):
                             f_grad[i][s][a][s_joint, a_joint] = 1.0
-    print('Finished building onehot vectors in {} seconds.'.format(time.time() 
-                                                                    - t_start))
+    print('Finished building gradients in {} seconds.'.format(time.time() 
+                                                                - t_start))
 
     ##### Define the problem variables
     x = cp.Variable(shape=(mdp.Ns, mdp.Na),
@@ -138,7 +146,9 @@ def build_linearized_program(mdp: MDP,
             for i in mdp.active_states]
         )
 
-    constraints.append(occupancy_out - occupancy_init - occupancy_in == 0)
+    constraints.append(occupancy_out 
+                        - occupancy_init 
+                        - occupancy_in == 0)
 
     ##### Define the problem objective
     target_set_in = cp.sum(cp.hstack(
@@ -162,11 +172,7 @@ def build_linearized_program(mdp: MDP,
             for a_local in range(agent_action_size_list[i]):
                 numerator = cp.sum(x_last[np.where(f_grad[i][s_local][a_local])])
                 denominator = cp.sum(x_last[np.where(g_grad[i][s_local])])
-                # if denominator.value <= 1e-5:
-                #     denominator = 1e-5
                 ratio_term = numerator / denominator
-                # if ratio_term.value <= 1e-5:
-                #     ratio_term = 1e-5
                 log_term = cp.log(ratio_term)
 
                 grad = grad + log_term * f_grad[i][s_local][a_local]
@@ -193,6 +199,44 @@ def compute_total_correlation(mdp : MDP,
                                 f_grad : dict,
                                 g_grad : dict,
                                 x : np.ndarray):
+    """
+    Compute the total correlation given the occupancy measure variables.
+
+    Parameters
+    ----------
+    mdp :
+        An object representing the MDP on which the reachability problem
+        is to be solved.
+    N_agents :
+        The number of agents involved in the problem.
+    agent_state_size_list :
+        A list of integers specifying the number of local states for
+        each agent.
+    agent_action_size_list :
+        A list of integers specifying the number of local actions for
+        each agent.
+    check_agent_state_action :
+        A function indicating whether or not the state-action pair of
+        a particular agent agrees with a given joint state-action pair.
+    check_agent_state :
+        A function indicating whether or not the state pair of
+        a particular agent agrees with a given joint state pair.
+    exp_len_coef :
+        Coefficient on the expected length term in the definition of
+        the optimization objective.
+    total_corr_coef :
+        Coefficient on the total correlation term in the definition of the
+        optimization objective.
+    max_length_constr : 
+        Hard constraint on the maximum expected length of the 
+        trajectories. This constraint is necessary to ensure that the 
+        optimization algorithm terminates.
+
+    Return
+    ------
+    total_corr :
+        The total correlation given the occupancy measure variables.
+    """
     y = np.sum(x[mdp.active_states, :], axis=1)
     y = np.vstack([y for i in range(mdp.Na)]).T
 
@@ -204,11 +248,7 @@ def compute_total_correlation(mdp : MDP,
             for a_local in range(agent_action_size_list[i]):
                 numerator = np.sum(x[np.where(f_grad[i][s_local][a_local])])
                 denominator = np.sum(x[np.where(g_grad[i][s_local])])
-                # if denominator <= 1e-10:
-                #     denominator = 1e-10
                 ratio_term = numerator / denominator
-                # if ratio_term <= 1e-10:
-                #     ratio_term = 1e-10
                 log_term = np.log(ratio_term)
 
                 convex_term = convex_term + numerator * log_term
