@@ -128,7 +128,7 @@ class MAGridworld(object):
         save_dict['T'] = self.T
 
         with open(save_file_str, 'wb') as f:
-            pickle.dump(save_dict, f) 
+            pickle.dump(save_dict, f)
 
     def load(self, load_file_str : str):
         """
@@ -428,8 +428,50 @@ class MAGridworld(object):
                     self.initial_index,
                     self.target_indexes,
                     self.dead_indexes,
-                    gamma=gamma
-                    )
+                    gamma=gamma)
+
+    def empirical_success_rate(self,
+                                policy : np.ndarray,
+                                use_imaginary_play : bool = False,
+                                num_trajectories : int = 1000,
+                                max_steps_per_trajectory : int = 50):
+        """
+        Run a trajectory from the joint initial state implementing the
+        specified policy with full communication.
+
+        Parameters
+        ----------
+        policy : 
+            A (Ns, Na) Matrix representing the policy. 
+            policy[s_ind, a_ind] is the probability of taking the action
+            indexed by a_ind from the joint state indexed by s_ind.
+        use_imaginary_play :
+            A boolean flag indicating whether or not to use imaginary 
+            play when generating the gifs.
+        num_trajectories :
+            The number of trajectories to include in the gif.
+        max_steps_per_trajectory :
+            The maximum number of steps to include in each trajectory
+            of the gif.
+
+        Returns
+        -------
+        success_rate : float
+            A numerical value between 0 and 1 indicating the frequency
+            at which the policy was observed to reach the target set.
+        """
+        success_count = 0
+        for t_ind in range(num_trajectories):
+            if use_imaginary_play:
+                temp_traj = self.run_trajectory_imaginary(policy, 
+                                    max_steps=max_steps_per_trajectory)
+            else:
+                temp_traj = self.run_trajectory(policy, 
+                                    max_steps=max_steps_per_trajectory)
+            if (temp_traj[-1] in self.target_indexes):
+                    success_count = success_count + 1
+
+        return success_count / num_trajectories
 
     def run_trajectory(self, policy : np.ndarray, max_steps : int = 50):
         """
@@ -686,6 +728,47 @@ class MAGridworld(object):
         # Clean up the folder of all the saved pictures
         for filename in set(filenames):
             os.remove(filename)
+
+    def generate_gif(self, 
+                    policy : np.ndarray,
+                    save_folder_str : str,
+                    save_file_name : str = 'ma_gridworld.gif',
+                    use_imaginary_play : bool = False,
+                    num_trajectories : int = 5,
+                    max_steps_per_trajectory : int = 50):
+        """
+        Generate and save a gif of a given policy.
+
+        Parameters
+        ----------
+        policy :
+            A (Ns, Na) array where policy[s,a] returns the probability
+            of taking joint action a from joint state s.
+        save_folder_str :
+            A string to the folder where the gif should be saved.
+        save_file_name :
+            A string containing the desired name of the saved gif file.
+        use_imaginary_play :
+            A boolean flag indicating whether or not to use imaginary 
+            play when generating the gifs.
+        num_trajectories :
+            The number of trajectories to include in the gif.
+        max_steps_per_trajectory :
+            The maximum number of steps to include in each trajectory
+            of the gif.
+        """
+        trajectory_list = []
+        for t_ind in range(num_trajectories):
+            if use_imaginary_play:
+                trajectory_list.append(self.run_trajectory_imaginary(policy, 
+                                    max_steps=max_steps_per_trajectory))
+            else:
+                trajectory_list.append(self.run_trajectory(policy, 
+                                    max_steps=max_steps_per_trajectory))
+
+        self.create_trajectories_gif(trajectory_list, 
+                                        save_folder_str,
+                                        save_file_name=save_file_name)
         
 def main():
     ##### BUILD THE GRIDWOLRD FROM SCRATCH AND SAVE IT
