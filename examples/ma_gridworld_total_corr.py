@@ -16,15 +16,15 @@ from utils.experiment_logger import ExperimentLogger
 from utils.process_occupancy import *
 
 curr_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-exp_name = curr_datetime + '_ma_gridworld_total_corr'
+exp_name = curr_datetime + '_ma_gridworld_reachability_slip_0p05'
 exp_logger = ExperimentLogger(experiment_name=exp_name)
 
-rebuild_gridworld = False
+rebuild_gridworld = True
 exp_logger.environment_settings = {
     'N_agents' : 2,
     'Nr' : 5,
     'Nc' : 5,
-    'slip_p' : 0.05,
+    'slip_p' : 0.05, # 0.05
     'initial_state' : (4,0,4,4),
     'target_states' : [(4, 4, 4, 0)],
     'dead_states' : [],
@@ -36,9 +36,9 @@ exp_logger.initial_soln_guess_setup = {
     'settings' : {}
 }
 exp_logger.optimization_params = {
-    'reachability_coef' : 10.0, # 10.0
-    'exp_len_coef' : 0.1, # 0.1
-    'total_corr_coef' : 0.40 # 4.0
+    'reachability_coef' : 1.0, # 10.0
+    'exp_len_coef' : 0.0, # 0.1
+    'total_corr_coef' : 0.0 # 4.0
 }
 
 ### BUILD THE GRIDWOLRD FROM SCRATCH
@@ -169,7 +169,7 @@ x_start = occupancy_vars_start
 
 ccp_tol = 1e-6
 x_last = x_start
-for i in range(100):
+for i in range(1):
     params[3].value = x_last
     prob.solve()
 
@@ -189,7 +189,7 @@ for i in range(100):
     empirical_rate = gridworld.empirical_success_rate(policy,
                                                 use_imaginary_play=True,
                                                 num_trajectories=1000,
-                                                max_steps_per_trajectory=30)
+                                                max_steps_per_trajectory=200)
 
     exp_logger.results[i] = {
         'occupancy_vars' : occupancy_vars,

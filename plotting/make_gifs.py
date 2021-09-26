@@ -6,7 +6,7 @@ from environments.ma_gridworld import MAGridworld
 from utils.experiment_logger import ExperimentLogger
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-save_file_name = '2021-09-20-22-03-37_ma_gridworld_reachability.pkl'
+save_file_name = '2021-09-24-16-32-52_ma_gridworld_reachability_slip_0p001.pkl'
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -30,11 +30,13 @@ gif_save_folder = os.path.join(os.path.abspath(os.path.curdir),
 #                         num_trajectories=5,
 #                         max_steps_per_trajectory=30)
 
+gif_save_name = save_file_name[0:save_file_name.find('.')] + '.gif'
+
 # Now for the final solution policy
 policy = exp_logger.results[max(exp_logger.results.keys())]['policy']
 gridworld.generate_gif(policy, 
                         save_folder_str=gif_save_folder,
-                        save_file_name='ma_gridworld_reachability_imag_play.gif',
+                        save_file_name=gif_save_name,
                         use_imaginary_play=True,
                         num_trajectories=5,
                         max_steps_per_trajectory=30)
