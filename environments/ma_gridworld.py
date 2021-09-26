@@ -559,14 +559,17 @@ class MAGridworld(object):
                     and (s not in self.dead_indexes)
                     and len(traj) <= max_steps):
             for agent_id in range(self.N_agents):
+
+                s_imag_ind = agent_s_inds[agent_id]
+
                 # Get the agent's action distribution from the policy.
-                act_dist = policy[agent_s_inds[agent_id], :]
+                act_dist = policy[s_imag_ind, :]
 
                 # Get the team's action, as imagined by the agent.
                 act = np.random.choice(actions, p=act_dist)
 
                 # Get the team's next state, as imagined by the agent.
-                s_next_ind = np.random.choice(states, p=self.T[s, act, :])
+                s_next_ind = np.random.choice(states, p=self.T[s_imag_ind, act, :])
                 s_next_tuple = self.pos_from_index[s_next_ind]
 
                 agent_a_inds[agent_id] = act
@@ -665,20 +668,39 @@ class MAGridworld(object):
             comm_flag = 1 - bernoulli.rvs(q)
 
             if comm_flag:
+                for agent_id in range(self.N_agents):
+                    agent_s_inds[agent_id] = s
                 a = np.random.choice(np.arange(self.Na_joint), p=policy[s,:])
-                s = np.random.choice(np.arange(self.Ns_joint), p=self.T[s,a,:])
-                traj.append(s)
 
+                for agent_id in range(self.N_agents):
+                    # Get the team's next state, as imagined by the agent.
+                    s_next_ind = np.random.choice(states, p=self.T[s, a, :])
+                    s_next_tuple = self.pos_from_index[s_next_ind]
+
+                    agent_a_inds[agent_id] = a
+                    agent_s_inds[agent_id] = s_next_ind
+                    agent_s_tuples[agent_id] = s_next_tuple
+
+                # Construct the true team next state
+                s_tuple = ()
+                for agent_id in range(self.N_agents):
+                    s_tuple = (s_tuple
+                        + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
+                s = self.index_from_pos[s_tuple]
+                
             else:
                 for agent_id in range(self.N_agents):
+
+                    s_imag_ind = agent_s_inds[agent_id]
+
                     # Get the agent's action distribution from the policy.
-                    act_dist = policy[agent_s_inds[agent_id], :]
+                    act_dist = policy[s_imag_ind, :]
 
                     # Get the team's action, as imagined by the agent.
                     act = np.random.choice(actions, p=act_dist)
 
                     # Get the team's next state, as imagined by the agent.
-                    s_next_ind = np.random.choice(states, p=self.T[s, act, :])
+                    s_next_ind = np.random.choice(states, p=self.T[s_imag_ind, act, :])
                     s_next_tuple = self.pos_from_index[s_next_ind]
 
                     agent_a_inds[agent_id] = act
@@ -689,9 +711,12 @@ class MAGridworld(object):
                 s_tuple = ()
                 for agent_id in range(self.N_agents):
                     s_tuple = (s_tuple
-                            + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
+                        + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
                 s = self.index_from_pos[s_tuple]
-                traj.append(s)
+
+            traj.append(s)
+
+            timestep = timestep + 1
 
         return traj
 
