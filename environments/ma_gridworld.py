@@ -9,6 +9,8 @@ import sys, os, time
 sys.path.append('../')
 from markov_decision_process.mdp import MDP
 
+from scipy.stats import bernoulli
+
 class MAGridworld(object):
 
     def __init__(self, 
@@ -21,7 +23,8 @@ class MAGridworld(object):
                 dead_states : list = [],
                 lava : list = [(0, 4), (0, 0)],
                 walls : list = [],
-                load_file_str : str = ''
+                load_file_str : str = '',
+                seed : int = 0
                 ):
         """
         Initializer for the Multiagent Gridworld object.
@@ -55,9 +58,12 @@ class MAGridworld(object):
             String representing the path of a data file to use to load a
             pre-build multiagent gridworld object. If load_file_str = '', 
             then the gridworld is instead constructed from scratch.
+        seed :
+            The random seed for the environment.
         """
 
         if load_file_str == '':
+            np.random.seed(seed)
 
             self.Nr = Nr
             self.Nc = Nc
@@ -101,6 +107,8 @@ class MAGridworld(object):
 
             self._build_transition_matrix()
 
+            self.seed = seed
+
         else:
             self.load(load_file_str)
 
@@ -126,6 +134,7 @@ class MAGridworld(object):
         save_dict['lava'] = self.lava
         save_dict['walls'] = self.walls
         save_dict['T'] = self.T
+        save_dict['seed'] = self.seed
 
         with open(save_file_str, 'wb') as f:
             pickle.dump(save_dict, f)
@@ -154,6 +163,9 @@ class MAGridworld(object):
         self.lava = save_dict['lava']
         self.walls = save_dict['walls']
         self.T = save_dict['T']
+        self.seed = save_dict['seed']
+
+        np.random.seed(self.seed)
 
         self._construct_state_space()
         self._construct_action_space()
@@ -521,10 +533,6 @@ class MAGridworld(object):
         traj : list
             List of indexes of states. 
         """
-        # TODO: Verify that this code actually implements fictitious play
-        # how we want it to. I don't think the true next state should
-        # just be the composition of each of the individual next states.
-
         traj = []
         agent_s_tuples = {}
         agent_s_inds = {}
@@ -601,6 +609,91 @@ class MAGridworld(object):
         #     traj.append(s)
 
         # return traj
+
+    def run_trajectory_intermittent(self, 
+                                    policy : np.ndarray, 
+                                    q : float,
+                                    max_steps : int = 50):
+        """
+        Run a trajectory from the joint initial state under imaginary 
+        play implementing the specified joint policy.
+
+        Parameters
+        ----------
+        policy : 
+            Matrix representing the policy. policy[s_ind, a_ind] is the 
+            probability of taking the action indexed by a_ind from the 
+            joint state indexed by s_ind.
+        q :
+            Value in [0,1] representing the parameter of the bernoulli
+            distribution modeling the probability of loosing 
+            communication at each step.
+
+        Returns
+        -------
+        traj : list
+            List of indexes of states. 
+        """
+        traj = []
+        agent_s_tuples = {}
+        agent_s_inds = {}
+        agent_a_inds = {}
+
+        actions = np.arange(self.Na_joint)
+        states = np.arange(self.Ns_joint)
+
+        s_tuple = self.pos_from_index[self.initial_index]
+
+        for agent_id in range(self.N_agents):
+            agent_s_tuples[agent_id] = s_tuple
+            agent_s_inds[agent_id] = \
+                self.index_from_pos[agent_s_tuples[agent_id]]
+        
+        s_tuple = ()
+        for agent_id in range(self.N_agents):
+            s_tuple = (s_tuple
+                        + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
+        s = self.index_from_pos[s_tuple]
+        traj.append(s)
+
+        timestep = 0
+        while ((s not in self.target_indexes) 
+                    and (s not in self.dead_indexes)
+                    and len(traj) <= max_steps):
+            
+            # flag should be true if communication is available
+            comm_flag = 1 - bernoulli.rvs(q)
+
+            if comm_flag:
+                a = np.random.choice(np.arange(self.Na_joint), p=policy[s,:])
+                s = np.random.choice(np.arange(self.Ns_joint), p=self.T[s,a,:])
+                traj.append(s)
+
+            else:
+                for agent_id in range(self.N_agents):
+                    # Get the agent's action distribution from the policy.
+                    act_dist = policy[agent_s_inds[agent_id], :]
+
+                    # Get the team's action, as imagined by the agent.
+                    act = np.random.choice(actions, p=act_dist)
+
+                    # Get the team's next state, as imagined by the agent.
+                    s_next_ind = np.random.choice(states, p=self.T[s, act, :])
+                    s_next_tuple = self.pos_from_index[s_next_ind]
+
+                    agent_a_inds[agent_id] = act
+                    agent_s_inds[agent_id] = s_next_ind
+                    agent_s_tuples[agent_id] = s_next_tuple
+
+                # Construct the true team next state
+                s_tuple = ()
+                for agent_id in range(self.N_agents):
+                    s_tuple = (s_tuple
+                            + agent_s_tuples[agent_id][2*agent_id:(2*agent_id+2)])
+                s = self.index_from_pos[s_tuple]
+                traj.append(s)
+
+        return traj
 
     #################### Visualization Methods
 
