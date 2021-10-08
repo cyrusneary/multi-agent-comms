@@ -3,10 +3,11 @@ import os, time, sys
 sys.path.append('..')
 
 from environments.ma_gridworld import MAGridworld
+from environments.three_agent_gridworld import ThreeAgentGridworld
 from utils.experiment_logger import ExperimentLogger
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-save_file_name = '2021-09-24-16-32-52_ma_gridworld_reachability_slip_0p001.pkl'
+save_file_name = '2021-10-08-12-40-38_three_agent_gridworld_total_corr_0p05.pkl'
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -14,7 +15,25 @@ exp_logger = ExperimentLogger(load_file_str=save_str)
 ##### Create the gridworld from the logged parameters
 
 t_start = time.time()
-gridworld = MAGridworld(**exp_logger.environment_settings)
+# gridworld = MAGridworld(**exp_logger.environment_settings)
+load_file_str = os.path.join(os.path.abspath(os.path.curdir),
+                                    '..', 'environments',
+                                    'saved_environments', 'three_agent_gridworld.pkl')
+gridworld = ThreeAgentGridworld(load_file_str=load_file_str)
+
+# Save the gridworld's settings to the logger.
+exp_logger.environment_settings = {
+    'N_agents' : gridworld.N_agents,
+    'Nr' : gridworld.Nr,
+    'Nc' : gridworld.Nc,
+    'slip_p' : gridworld.slip_p,
+    'initial_state' : gridworld.initial_state,
+    'target_states' : gridworld.target_states,
+    'dead_states' : gridworld.dead_states,
+    'lava' : gridworld.lava,
+    'walls' : gridworld.walls
+}
+print('Loaded multiagent gridworld.')
 print('Constructed the gridworld in {} seconds.'.format(time.time() - t_start))
 
 ##### Create some GIFs
@@ -32,11 +51,13 @@ gif_save_folder = os.path.join(os.path.abspath(os.path.curdir),
 
 gif_save_name = save_file_name[0:save_file_name.find('.')] + '.gif'
 
+print(exp_logger.results[max(exp_logger.results.keys())])
+
 # Now for the final solution policy
 policy = exp_logger.results[max(exp_logger.results.keys())]['policy']
 gridworld.generate_gif(policy, 
                         save_folder_str=gif_save_folder,
                         save_file_name=gif_save_name,
                         use_imaginary_play=True,
-                        num_trajectories=5,
+                        num_trajectories=20,
                         max_steps_per_trajectory=30)

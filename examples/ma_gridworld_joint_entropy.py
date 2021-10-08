@@ -6,8 +6,7 @@ sys.path.append('../')
 
 from environments.ma_gridworld import MAGridworld
 from markov_decision_process.mdp import MDP
-from optimization_problems.joint_entropy import build_joint_entropy_program,\
-                                                    process_occupancy_vars
+from optimization_problems.joint_entropy import build_joint_entropy_program
 from utils.process_occupancy import *
 
 # #### BUILD THE GRIDWOLRD FROM SCRATCH

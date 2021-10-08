@@ -19,7 +19,7 @@ curr_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 exp_name = curr_datetime + '_three_agent_gridworld_total_corr_0p05'
 exp_logger = ExperimentLogger(experiment_name=exp_name)
 
-rebuild_gridworld = False
+rebuild_gridworld = True
 exp_logger.environment_settings = {
     'N_agents' : 3,
     'Nr' : 3,

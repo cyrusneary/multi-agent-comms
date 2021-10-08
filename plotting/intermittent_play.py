@@ -18,13 +18,12 @@ tikz_save_path = os.path.abspath(os.path.join(os.path.curdir, 'tikz'))
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
 # save_file_name = '2021-09-25-19-44-09_ma_gridworld_total_corr_slip_0p05.pkl'
-save_file_name = '2021-10-06-15-51-09_ma_gridworld_total_corr_slip_0p05.pkl'
+save_file_name = '2021-10-06-15-51-09_ma_gridworld_total_corr_slip_0p05.pkl' # data used in paper
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
 
-# save_file_name_reachability = '2021-09-25-20-05-29_ma_gridworld_reachability_slip_0p05.pkl'
-save_file_name_reachability = '2021-10-06-16-09-44_ma_gridworld_reachability_0p05.pkl'
+save_file_name_reachability = '2021-09-25-20-05-29_ma_gridworld_reachability_slip_0p05.pkl'
 save_str_reachability = os.path.join(base_path, save_file_name_reachability)
 exp_logger_reachability = ExperimentLogger(load_file_str=save_str_reachability)
 

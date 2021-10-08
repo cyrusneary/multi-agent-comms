@@ -485,6 +485,46 @@ class MAGridworld(object):
 
         return success_count / num_trajectories
 
+    def empirical_intermittent_success_rate(self,
+                                policy : np.ndarray,
+                                q: float,
+                                num_trajectories : int = 1000,
+                                max_steps_per_trajectory : int = 50):
+        """
+        Run a trajectory from the joint initial state implementing the
+        specified policy with full communication.
+
+        Parameters
+        ----------
+        policy : 
+            A (Ns, Na) Matrix representing the policy. 
+            policy[s_ind, a_ind] is the probability of taking the action
+            indexed by a_ind from the joint state indexed by s_ind.
+        q :
+            Value in [0,1] representing the parameter of the bernoulli
+            distribution modeling the probability of loosing 
+            communication at each step.            
+        num_trajectories :
+            The number of trajectories to include in the gif.
+        max_steps_per_trajectory :
+            The maximum number of steps to include in each trajectory
+            of the gif.
+
+        Returns
+        -------
+        success_rate : float
+            A numerical value between 0 and 1 indicating the frequency
+            at which the policy was observed to reach the target set.
+        """
+        success_count = 0
+        for t_ind in range(num_trajectories):
+            temp_traj = self.run_trajectory_intermittent(policy, q,
+                                max_steps=max_steps_per_trajectory)
+            if (temp_traj[-1] in self.target_indexes):
+                    success_count = success_count + 1
+
+        return success_count / num_trajectories
+
     def run_trajectory(self, policy : np.ndarray, max_steps : int = 50):
         """
         Run a trajectory from the joint initial state implementing the
