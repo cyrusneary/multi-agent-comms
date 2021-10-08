@@ -16,7 +16,7 @@ from utils.experiment_logger import ExperimentLogger
 from utils.process_occupancy import *
 
 curr_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-exp_name = curr_datetime + '_ma_gridworld_reachability_slip_0p05'
+exp_name = curr_datetime + '_ma_gridworld_total_corr_0p05'
 exp_logger = ExperimentLogger(experiment_name=exp_name)
 
 rebuild_gridworld = True
@@ -26,19 +26,20 @@ exp_logger.environment_settings = {
     'Nc' : 5,
     'slip_p' : 0.05, # 0.05
     'initial_state' : (4,0,4,4),
-    'target_states' : [(4, 4, 4, 0)],
+    'target_states' : [(4, 3, 4, 1)],
     'dead_states' : [],
     'lava' : [(0, 0), (0,3), (0,1)],
-    'walls' : [(0,2), (2,2), (4,2)]
+    'walls' : [(0,2), (2,2), (4,2)],
+    'seed' : 1,
 }
 exp_logger.initial_soln_guess_setup = {
     'type' : 'random', # reachability, entropy
     'settings' : {}
 }
 exp_logger.optimization_params = {
-    'reachability_coef' : 1.0, # 10.0
-    'exp_len_coef' : 0.0, # 0.1
-    'total_corr_coef' : 0.0 # 4.0
+    'reachability_coef' : 10.0, # 10.0
+    'exp_len_coef' : 0.1, # 0.1
+    'total_corr_coef' : 4.0 # 4.0
 }
 
 ### BUILD THE GRIDWOLRD FROM SCRATCH
@@ -167,9 +168,8 @@ x_start = occupancy_vars_start
 
 ##### Solve the problem via convex-concave procedure
 
-ccp_tol = 1e-6
 x_last = x_start
-for i in range(1):
+for i in range(100):
     params[3].value = x_last
     prob.solve()
 
