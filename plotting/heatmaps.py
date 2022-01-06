@@ -25,6 +25,7 @@ tikz_save_path = os.path.abspath(os.path.join(os.path.curdir, 'tikz'))
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
 # save_file_name = '2021-09-25-19-44-09_ma_gridworld_total_corr_slip_0p05.pkl'
 save_file_name = '2021-10-06-15-51-09_ma_gridworld_total_corr_slip_0p05.pkl'
+save_file_name = '2022-01-06-12-23-20_ma_gridworld_total_corr_add_end_state_0p05.pkl'
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -54,7 +55,7 @@ N_joint_states = x_total_corr.shape[0]
 
 agent0_map_total_corr = np.zeros((Nr, Nc))
 
-agent_id = 0
+agent_id = 1
 
 for r in range(Nr):
     for c in range(Nc):
@@ -63,7 +64,7 @@ for r in range(Nr):
             pos = env.pos_from_index[s_ind][2*agent_id:(2*agent_id+2)]
             if pos == (r, c):
                 s_ind_list.append(s_ind)
-        agent0_map_total_corr[r, c] = np.sum(x_reachability[s_ind_list])
+        agent0_map_total_corr[r, c] = np.sum(x_total_corr[s_ind_list])
 
 goal_local_pos = env.target_states[0][2*agent_id:(2*agent_id+2)]
 agent0_map_total_corr[goal_local_pos[0], goal_local_pos[1]] = 1.0
@@ -100,9 +101,16 @@ ax.add_patch(Rectangle([-0.5, -0.5], 5.0, 5.0, facecolor='none',
 
 ax.plot([0.0, 0.0], color=water_color)
 
-ax.text(0.0, 4.0, '$R_2$\n Initial State', fontsize=18, color='white',
+# # Use this when agent_id = 0
+# ax.text(0.0, 4.0, '$R_2$\n Initial State', fontsize=18, color='white',
+#                                             horizontalalignment='center')
+# ax.text(3.0, 4.0, '$T_2$', fontsize=20, color='white',
+#                                             horizontalalignment='center')
+
+# Use this when agent_id = 1
+ax.text(4.0, 4.0, '$R_1$\n Initial State', fontsize=18, color='white',
                                             horizontalalignment='center')
-ax.text(3.0, 4.0, '$T_2$', fontsize=20, color='white',
+ax.text(1.0, 4.0, '$T_1$', fontsize=20, color='white',
                                             horizontalalignment='center')
 
 cbar = plt.colorbar(heatmap)
