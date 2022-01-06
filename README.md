@@ -1,5 +1,11 @@
-# multi-agent-comms
-Multi-agent communications project.
+# Multiagent Systems that are Robust to Communication Loss
+
+To run the two-agent navigation experiment from the paper, run
+>python examples/ma_gridworld_total_corr.py
+
+and to run the three-agent navigation experiment from the supplementary material, run
+
+>python examples/run_three_agent_gridworld.py
 
 ## Requirements
 This project requires the following Python 3 packages:
