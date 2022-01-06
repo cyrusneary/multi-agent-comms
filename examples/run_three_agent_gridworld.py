@@ -5,7 +5,7 @@ import sys, os, time
 
 sys.path.append('../')
 
-from environments.three_agent_gridworld import ThreeAgentGridworld
+from environments.ma_gridworld import MAGridworld
 
 from optimization_problems.total_corr2 import build_linearized_program
 from optimization_problems.joint_entropy import build_joint_entropy_program
@@ -47,7 +47,7 @@ if rebuild_gridworld:
     # Build the gridworld
     print('Building gridworld')
     t_start = time.time()
-    gridworld = ThreeAgentGridworld(**exp_logger.environment_settings)
+    gridworld = MAGridworld(**exp_logger.environment_settings)
     print('Constructed gridworld in {} seconds'.format(time.time() - t_start))
 
     # Sanity check on the transition matrix
@@ -66,7 +66,7 @@ else:
     load_file_str = os.path.join(os.path.abspath(os.path.curdir),
                                     '..', 'environments',
                                     'saved_environments', 'three_agent_gridworld.pkl')
-    gridworld = ThreeAgentGridworld(load_file_str=load_file_str)
+    gridworld = MAGridworld(load_file_str=load_file_str)
 
     # Save the gridworld's settings to the logger.
     exp_logger.environment_settings = {

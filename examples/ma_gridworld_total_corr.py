@@ -112,7 +112,7 @@ for agent_id in range(gridworld.N_agents):
     agent_state_size_list.append(gridworld.Ns_local)
     agent_action_size_list.append(gridworld.Na_local)
 
-# Construct and solve the reachability LP
+# Construct and solve the optimization problem
 t = time.time()
 prob, vars, params, f_grad, g_grad = \
     build_linearized_program(mdp, 
@@ -209,9 +209,9 @@ for i in range(100):
 
     x_last = occupancy_vars
 
-save_folder_str = os.path.join(os.path.abspath(os.path.curdir), 'results')
-save_file_name = exp_logger.experiment_name + '.pkl'
-exp_logger.save(save_folder_str, save_file_name)
+    save_folder_str = os.path.join(os.path.abspath(os.path.curdir), 'results')
+    save_file_name = exp_logger.experiment_name + '.pkl'
+    exp_logger.save(save_folder_str, save_file_name)
 
 # ##### Empirically measure imaginary play success
 # t_start = time.time()
