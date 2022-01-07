@@ -23,7 +23,8 @@ target_color = '#4472C4'
 tikz_save_path = os.path.abspath(os.path.join(os.path.curdir, 'tikz'))
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-save_file_name = '2021-10-08-14-43-52_three_agent_gridworld_total_corr_0p05.pkl'
+# save_file_name = '2021-10-08-14-43-52_three_agent_gridworld_total_corr_0p05.pkl'
+save_file_name = '2022-01-06-14-17-07_three_agent_gridworld_total_corr_0p05.pkl' # data file used in final submission
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -85,10 +86,23 @@ ax.add_patch(Rectangle([-0.5, -0.5], 3.0, 3.0, facecolor='none',
 
 # ax.plot([0.0, 0.0], color=water_color)
 
-ax.text(2.0, 2.0, '$R_1$\n Initial State', fontsize=35, color='white',
+# agent_id = 0
+ax.text(2.0, 2.0, '$R_1$\n Initial State', fontsize=27, color='white',
                                             horizontalalignment='center')
 ax.text(0.0, 0.0, '$T_1$', fontsize=40, color='white',
                                             horizontalalignment='center')
+
+# # agent_id = 1
+# ax.text(0.0, 0.0, '$R_2$\n Initial State', fontsize=27, color='white',
+#                                             horizontalalignment='center')
+# ax.text(2.0, 2.0, '$T_2$', fontsize=40, color='white',
+#                                             horizontalalignment='center')
+
+# # agent_id = 2
+# ax.text(2.0, 0.0, '$R_3$\n Initial State', fontsize=27, color='white',
+#                                             horizontalalignment='center')
+# ax.text(0.0, 2.0, '$T_3$', fontsize=40, color='white',
+#                                             horizontalalignment='center')
 
 cbar = plt.colorbar(heatmap)
 # ticklabs = cbar.ax.get_yticklabels()

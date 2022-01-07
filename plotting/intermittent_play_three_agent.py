@@ -17,7 +17,8 @@ tikz_save_path = os.path.abspath(os.path.join(os.path.curdir, 'tikz'))
 ##### Load the policies
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-save_file_name = '2021-10-08-14-43-52_three_agent_gridworld_total_corr_0p05_copy.pkl'
+# save_file_name = '2021-10-08-14-43-52_three_agent_gridworld_total_corr_0p05_copy.pkl'
+save_file_name = '2022-01-06-14-17-07_three_agent_gridworld_total_corr_0p05.pkl' # data used in final submission
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)

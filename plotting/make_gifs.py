@@ -7,7 +7,8 @@ from environments.three_agent_gridworld import ThreeAgentGridworld
 from utils.experiment_logger import ExperimentLogger
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-save_file_name = '2021-10-08-12-40-38_three_agent_gridworld_total_corr_0p05.pkl'
+save_file_name = '2022-01-06-12-23-20_ma_gridworld_total_corr_add_end_state_0p05.pkl' # data file used in final submission
+# save_file_name = '2022-01-06-14-17-07_three_agent_gridworld_total_corr_0p05.pkl' # Three-agent data file used in final submission
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -18,8 +19,8 @@ t_start = time.time()
 # gridworld = MAGridworld(**exp_logger.environment_settings)
 load_file_str = os.path.join(os.path.abspath(os.path.curdir),
                                     '..', 'environments',
-                                    'saved_environments', 'three_agent_gridworld.pkl')
-gridworld = ThreeAgentGridworld(load_file_str=load_file_str)
+                                    'saved_environments', 'ma_gridworld.pkl')
+gridworld = MAGridworld(load_file_str=load_file_str)
 
 # Save the gridworld's settings to the logger.
 exp_logger.environment_settings = {

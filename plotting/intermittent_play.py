@@ -17,8 +17,8 @@ tikz_save_path = os.path.abspath(os.path.join(os.path.curdir, 'tikz'))
 ##### Load the policies
 
 base_path = os.path.abspath(os.path.join(os.path.curdir, '..', 'examples', 'results'))
-# save_file_name = '2021-09-25-19-44-09_ma_gridworld_total_corr_slip_0p05.pkl'
-save_file_name = '2021-10-06-15-51-09_ma_gridworld_total_corr_slip_0p05.pkl' # data used in paper
+save_file_name = '2021-10-06-15-51-09_ma_gridworld_total_corr_slip_0p05.pkl' # data used in initial submission
+save_file_name = '2022-01-06-12-23-20_ma_gridworld_total_corr_add_end_state_0p05.pkl' # data used in final submission
 save_str = os.path.join(base_path, save_file_name)
 
 exp_logger = ExperimentLogger(load_file_str=save_str)
@@ -72,7 +72,7 @@ ax.grid()
 ax.set_xlabel('q', fontsize=fontsize)
 ax.set_ylabel('Task Success Probability', fontsize=fontsize)
 
-tikz_file_str = os.path.join(tikz_save_path, 'plot_intermittent_play_data_map2.tex')
+tikz_file_str = os.path.join(tikz_save_path, 'plot_intermittent_play_data_aux_action.tex')
 tikzplotlib.save(tikz_file_str)
 
 plt.show()
