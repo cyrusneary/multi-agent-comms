@@ -1,11 +1,11 @@
 # Multiagent Systems that are Robust to Communication Loss
 
 To run the two-agent navigation experiment from the paper, run
->python examples/ma_gridworld_total_corr.py
+>python examples/ma_gridworld_total_corr_add_end_state.py
 
 and to run the three-agent navigation experiment from the supplementary material, run
 
->python examples/run_three_agent_gridworld.py
+>python examples/run_three_agent_gridworld_add_end_state.py
 
 ## Requirements
 This project requires the following Python 3 packages:
