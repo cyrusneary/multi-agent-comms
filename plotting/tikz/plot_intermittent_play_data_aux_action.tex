@@ -1,0 +1,62 @@
+% This file was created with tikzplotlib v0.9.12.
+\begin{tikzpicture}
+
+\begin{axis}[
+tick align=outside,
+tick pos=left,
+x grid style={white!69.0196078431373!black},
+xlabel={q},
+xmajorgrids,
+xmin=-0.05, xmax=1.05,
+xtick style={color=black},
+y grid style={white!69.0196078431373!black},
+ylabel={Task Success Probability},
+ymajorgrids,
+ymin=-0.0411413124560695, ymax=1.04800672916457,
+ytick style={color=black}
+]
+\addplot [semithick, blue]
+table {%
+0 0.9645
+0.1 0.9631
+0.2 0.9649
+0.3 0.9654
+0.4 0.9659
+0.5 0.964
+0.6 0.9629
+0.7 0.9634
+0.8 0.9592
+0.9 0.9597
+1 0.9599
+};
+\addplot [semithick, red]
+table {%
+0 0.9985
+0.1 0.9969
+0.2 0.9974
+0.3 0.9946
+0.4 0.9918
+0.5 0.9825
+0.6 0.9718
+0.7 0.9515
+0.8 0.9253
+0.9 0.8816
+1 0.8192
+};
+\addplot [semithick, black]
+table {%
+0 0.963806173147503
+0.1 0.498470337323431
+0.2 0.342367183995543
+0.3 0.243320198856998
+0.4 0.174355170477208
+0.5 0.124272331018283
+0.6 0.0870307015164632
+0.7 0.0589234683489952
+0.8 0.0374981566003023
+0.9 0.0210523452408797
+1 0.00836541670850521
+};
+\end{axis}
+
+\end{tikzpicture}

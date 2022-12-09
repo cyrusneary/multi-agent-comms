@@ -57,7 +57,8 @@ N_joint_states = x_total_corr.shape[0]
 
 agent0_map_total_corr = np.zeros((Nr, Nc))
 
-agent_id = 0
+agent_id = 2
+plot_reachability = True
 
 for r in range(Nr):
     for c in range(Nc):
@@ -66,7 +67,10 @@ for r in range(Nr):
             pos = env.pos_from_index[s_ind][2*agent_id:(2*agent_id+2)]
             if pos == (r, c):
                 s_ind_list.append(s_ind)
-        agent0_map_total_corr[r, c] = np.sum(x_total_corr[s_ind_list])
+        if plot_reachability:
+            agent0_map_total_corr[r, c] = np.sum(x_reachability[s_ind_list])
+        else:
+            agent0_map_total_corr[r, c] = np.sum(x_total_corr[s_ind_list])
 
 goal_local_pos = env.target_states[0][2*agent_id:(2*agent_id+2)]
 agent0_map_total_corr[goal_local_pos[0], goal_local_pos[1]] = 1.0
@@ -76,8 +80,16 @@ fig = plt.figure(figsize=(15,15))
 ax = fig.add_subplot(111)
 ax.axis('off')
 
+print(np.max(agent0_map_total_corr))
+
+# 1.04
+# 1.642
+# 1.642
+# 2.06
+
 heatmap = ax.imshow(agent0_map_total_corr, cmap=plt.get_cmap('Oranges'), 
-                                                    interpolation='nearest')
+                                                    interpolation='nearest',
+                                                    vmin=0.0, vmax=2.06)
 
 # Plot a rectangle around the whole thing.
 ax.add_patch(Rectangle([-0.5, -0.5], 3.0, 3.0, facecolor='none',
@@ -86,11 +98,11 @@ ax.add_patch(Rectangle([-0.5, -0.5], 3.0, 3.0, facecolor='none',
 
 # ax.plot([0.0, 0.0], color=water_color)
 
-# agent_id = 0
-ax.text(2.0, 2.0, '$R_1$\n Initial State', fontsize=27, color='white',
-                                            horizontalalignment='center')
-ax.text(0.0, 0.0, '$T_1$', fontsize=40, color='white',
-                                            horizontalalignment='center')
+# # agent_id = 0
+# ax.text(2.0, 2.0, '$R_1$\n Initial State', fontsize=27, color='white',
+#                                             horizontalalignment='center')
+# ax.text(0.0, 0.0, '$T_1$', fontsize=40, color='white',
+#                                             horizontalalignment='center')
 
 # # agent_id = 1
 # ax.text(0.0, 0.0, '$R_2$\n Initial State', fontsize=27, color='white',
@@ -104,13 +116,14 @@ ax.text(0.0, 0.0, '$T_1$', fontsize=40, color='white',
 # ax.text(0.0, 2.0, '$T_3$', fontsize=40, color='white',
 #                                             horizontalalignment='center')
 
-cbar = plt.colorbar(heatmap)
-# ticklabs = cbar.ax.get_yticklabels()
-# cbar.ax.set_yticklabels(ticklabs, fontsize=150)
-for t in cbar.ax.get_yticklabels():
-     t.set_fontsize(20)
+# cbar = plt.colorbar(heatmap)
+# # ticklabs = cbar.ax.get_yticklabels()
+# # cbar.ax.set_yticklabels(ticklabs, fontsize=150)
+# for t in cbar.ax.get_yticklabels():
+#      t.set_fontsize(20)
 
-plt.show()
+# plt.show()
 
+plt.savefig('three_agent3_occupancy_map_reachability.pdf', bbox_inches='tight')
 
 # %%
