@@ -2,7 +2,7 @@
 
 This repository contains the code to run the numerical experiments from the paper:
 
-Mustafa O. Karabag*, Cyrus Neary*, and Ufuk Topcu. 2022. Planning Not to Talk: Multiagent Systems that are Robust to Communication Loss. *In Proc. of the 21st International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2022), Online, May 9–13, 2022*, IFAAMAS, 28 pages.
+Mustafa O. Karabag*, Cyrus Neary*, and Ufuk Topcu. 2022. Planning Not to Talk: Multiagent Systems that are Robust to Communication Loss. *In Proc. of the 21st International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2022), Online, May 9–13, 2022*, IFAAMAS, 9 pages.
 
 *Equal Contibution
 
